@@ -6,13 +6,15 @@ Det här repot innehåller teamets klickbara frontenddemo. Gränssnittet heter *
 
 ## Prova demon i mobilen
 
-När GitHub Pages är aktiverat ligger demon på **https://ollebullee.github.io/bryggis/dist/**
+Demo för mobiltest: **https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/**
 
-- Kundvy: https://ollebullee.github.io/bryggis/dist/#hem
-- Bli medlem (dit QR-koden leder): https://ollebullee.github.io/bryggis/dist/#bli-medlem
-- Personalvy: https://ollebullee.github.io/bryggis/dist/#personal
+- Kundvy: https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/#hem
+- Bli medlem (dit QR-koden leder): https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/#bli-medlem
+- Personalvy: https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/#personal
 
-Aktivera en gång (kräver ägaren av repot): **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, mapp `/ (root)` → Save.** Efter några minuter är sidan uppe, och varje push till `main` publiceras sedan automatiskt.
+Demon publiceras via den befintliga hostingen för mobiltest, med publik åtkomst utan ChatGPT-inloggning. Domänen behåller det tidigare arbetsnamnet; gränssnittet heter Bryggis. Källkoden ligger i detta repo. Publicering sker separat och en GitHub-push uppdaterar inte automatiskt den hostade demon.
+
+Alternativ hosting: publicera katalogen `dist/` som en statisk webbplats, till exempel hos Netlify. Om GitHub Pages används: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, mapp `/ (root)` → Save.** Då blir adressen `https://ollebullee.github.io/bryggis/dist/`. Byt även QR-kodens adress när ni byter hosting.
 
 Varje telefon har sin egen demodata. Kund- och personalvy synkar bara mellan flikar i samma webbläsare.
 
@@ -65,9 +67,9 @@ Lokal lagring, lokal klocka och den animerade gröna skärmen är inga säkerhet
 
 `dist/signup-qr.png` är en **registreringskod för kunden att skanna**, inte en kod personalen skannar i kassan. Den pekar på:
 
-`https://ollebullee.github.io/bryggis/dist/#bli-medlem`
+`https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/#bli-medlem`
 
-Koden fungerar så fort GitHub Pages är aktiverat och öppnas i mobilens vanliga webbläsare, utan inloggning. Byts adressen inför piloten görs koden om med `python3 tools/make_qr.py <ny adress>`.
+Koden öppnar registreringen i mobilens vanliga webbläsare. Byts adressen inför piloten görs koden om med `python3 tools/make_qr.py <ny adress>`.
 
 För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj **Dela → Lägg till på hemskärmen**. Manifest och service worker finns, men installation och offlinebruk behöver fortfarande verifieras på en fysisk iPhone. Ingen App Store-app eller TestFlight-version ingår.
 
@@ -87,7 +89,7 @@ För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj *
 | `index.html`, `.nojekyll` | Skickar besökare från repots rot till demon på GitHub Pages |
 | `tools/make_qr.py` | Gör om registreringskoden när adressen ändras |
 
-`dist/` är både källkod och publiceringskatalog i den här byggfria demon. Den kan serveras av en statisk webbhost. GitHub Pages serverar den direkt från `main` när Pages är aktiverat. En framtida Vite/TypeScript-version ska ha källkod i `src/` och generera `dist/` vid byggning.
+`dist/` är både källkod och publiceringskatalog i den här byggfria demon. Den kan serveras av en statisk webbhost. Den befintliga hostingen publicerar innehållet i `dist/`; rotfilen `index.html` är en alternativ ingång för GitHub Pages. En framtida Vite/TypeScript-version ska ha källkod i `src/` och generera `dist/` vid byggning.
 
 ## Arbeta tillsammans
 
