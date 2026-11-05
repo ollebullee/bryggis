@@ -11,7 +11,7 @@ from pathlib import Path
 import qrcode
 from qrcode.constants import ERROR_CORRECT_M
 
-DEFAULT_URL = "https://ollebullee.github.io/bryggis/dist/#bli-medlem"
+DEFAULT_URL = "https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/#bli-medlem"
 OUT = Path(__file__).resolve().parent.parent / "dist" / "signup-qr.png"
 
 
