@@ -1,9 +1,9 @@
-export const STORAGE_KEY = 'stammis-demo-v1';
+export const STORAGE_KEY = 'bryggis-demo-v1';
 export const TIME_ZONE = 'Europe/Stockholm';
+// Piloten har ett enda abonnemang per kafé: bryggkaffe, en kopp om dagen.
+// Priset är cirka 15 gånger priset för en kopp (39 kr), avrundat nedåt.
 export const PLAN_TYPES = [
-  {id:'daily',name:'Dagens kaffe',price:299,regularPrice:39,description:'Nybryggt kaffe, en kopp om dagen.',benefit:'Bryggkaffe varje dag',drinks:['Bryggkaffe'],popular:true},
-  {id:'any',name:'Valfri kaffedryck',price:549,regularPrice:55,description:'Latte, cappuccino eller något mitt emellan.',benefit:'Valfri kaffedryck varje dag',drinks:['Bryggkaffe','Caffè latte','Cappuccino','Flat white','Americano','Espresso']},
-  {id:'fika',name:'Kaffe & en liten fika',price:749,regularPrice:85,description:'Din favoritkopp och en kanelbulle till.',benefit:'Valfri kaffedryck + kanelbulle',drinks:['Bryggkaffe','Caffè latte','Cappuccino','Flat white','Americano','Espresso'],fika:true}
+  {id:'daily',name:'Dagens kaffe',price:579,regularPrice:39,description:'Nybryggt kaffe, en kopp om dagen.',benefit:'Bryggkaffe varje dag',drinks:['Bryggkaffe']}
 ];
 const ACTIVE_ORDERS = ['queued','preparing','ready'];
 export class AppError extends Error { constructor(message){super(message);this.name='AppError';} }
@@ -17,18 +17,18 @@ export function planFor(state,id=state.subscription.plan) {const p=PLAN_TYPES.fi
 export function createState(now=Date.now(),samples=true) {
   const day=dayKey(now);
   return {version:2,revision:0,day,
-    cafe:{name:'Ditt Kafé',address:'Runt hörnet, i ditt kvarter',open:'07:00',close:'18:00',prepMinutes:4,paused:false,prices:{daily:299,any:549,fika:749},regularPrices:{daily:39,any:55,fika:85},bean:'Etiopien Guji',beanNote:'Ljusrost · jasmin, citrus & bergamott'},
+    cafe:{name:'Ditt Kafé',address:'Runt hörnet, i ditt kvarter',open:'07:00',close:'18:00',prepMinutes:4,paused:false,prices:{daily:579},regularPrices:{daily:39},bean:'Etiopien Guji',beanNote:'Ljusrost · jasmin, citrus & bergamott'},
     profile:{name:'Alex Andersson',email:'alex@example.com',favorite:{drink:'Bryggkaffe',milk:'Svart',takeaway:true}},
-    subscription:{plan:'daily',price:299,active:true,cancelling:false,periodStart:day,periodEnd:addMonth(day),billingDay:Number(day.slice(-2))},
+    subscription:{plan:'daily',price:579,active:true,cancelling:false,periodStart:day,periodEnd:addMonth(day),billingDay:Number(day.slice(-2))},
     orders:samples?[
       {id:'example-nora',name:'Nora A.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-120000,dueAt:now+4*60000,status:'preparing',startedAt:now-30000,own:false,day,number:'101'},
-      {id:'example-sara',name:'Sara L.',drink:'Caffè latte',milk:'Havredryck',takeaway:true,fika:false,createdAt:now-90000,dueAt:now+9*60000,status:'queued',own:false,day,number:'102'},
-      {id:'example-omar',name:'Omar K.',drink:'Cappuccino',milk:'Vanlig mjölk',takeaway:false,fika:false,createdAt:now-60000,dueAt:now+12*60000,status:'queued',own:false,day,number:'103'},
+      {id:'example-sara',name:'Sara L.',drink:'Bryggkaffe',milk:'Havredryck',takeaway:true,fika:false,createdAt:now-90000,dueAt:now+9*60000,status:'queued',own:false,day,number:'102'},
+      {id:'example-omar',name:'Omar K.',drink:'Bryggkaffe',milk:'Vanlig mjölk',takeaway:false,fika:false,createdAt:now-60000,dueAt:now+12*60000,status:'queued',own:false,day,number:'103'},
       {id:'example-elin',name:'Elin B.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-8*60000,dueAt:now-60000,status:'ready',startedAt:now-6*60000,readyAt:now-60000,own:false,day,number:'104'}
     ]:[],redemptions:{},history:[],log:samples?[
       {id:'log-jonas',name:'Jonas P.',drink:'Bryggkaffe',at:now-7*60000,kind:'counter',sample:true},
-      {id:'log-maja',name:'Maja S.',drink:'Caffè latte',at:now-10*60000,kind:'preorder',sample:true},
-      {id:'log-ali',name:'Ali R.',drink:'Americano',at:now-14*60000,kind:'counter',sample:true}
+      {id:'log-maja',name:'Maja S.',drink:'Bryggkaffe',at:now-10*60000,kind:'preorder',sample:true},
+      {id:'log-ali',name:'Ali R.',drink:'Bryggkaffe',at:now-14*60000,kind:'counter',sample:true}
     ]:[],nextNumber:105};
 }
 const validString=(v,max=160)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;

@@ -1,8 +1,20 @@
 # Bryggis · kaffeabonnemang för fristående kaféer
 
-Det här repot innehåller teamets klickbara frontenddemo. Gränssnittet visar fortfarande det tidigare arbetsnamnet **Stammis**. Namnet på repot innebär ingen genomförd namnändring i gränssnittet.
+Det här repot innehåller teamets klickbara frontenddemo. Gränssnittet heter **Bryggis**. Namnet är ett arbetsnamn tills domän och varumärke är kontrollerade.
 
-**Status: lokal demo, inte en tjänst för riktiga betalningar eller beställningar.**
+**Status: demo, inte en tjänst för riktiga betalningar eller beställningar.**
+
+## Prova demon i mobilen
+
+När GitHub Pages är aktiverat ligger demon på **https://ollebullee.github.io/bryggis/dist/**
+
+- Kundvy: https://ollebullee.github.io/bryggis/dist/#hem
+- Bli medlem (dit QR-koden leder): https://ollebullee.github.io/bryggis/dist/#bli-medlem
+- Personalvy: https://ollebullee.github.io/bryggis/dist/#personal
+
+Aktivera en gång (kräver ägaren av repot): **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, mapp `/ (root)` → Save.** Efter några minuter är sidan uppe, och varje push till `main` publiceras sedan automatiskt.
+
+Varje telefon har sin egen demodata. Kund- och personalvy synkar bara mellan flikar i samma webbläsare.
 
 ## Kör lokalt
 
@@ -44,18 +56,18 @@ Använd exempeluppgifter. Du kan återställa demon under **Konto**. Beställnin
 | Förnyelse och uppsägning | Simuleras med lokala datum. Ingen betaltjänst påverkas. |
 | Riktiga kafébeställningar | Skickas inte till ett kafé. Kön innehåller exempeldata. |
 | Avbokning | Tillåts tills personalen markerar påbörjad. Förslaget om tidslås är ännu inte genomfört. |
-| Utbud | Tre exempelplaner finns. Piloten ska ha ett bryggkaffeabonnemang per kafé. |
+| Utbud | Ett abonnemang, Dagens kaffe: bryggkaffe, en kopp om dagen, 579 kr/mån. Det motsvarar cirka 15 koppar à 39 kr. Kaféet kan ändra priset under Kaféinställningar. |
 | Notiser | Ingen pushfunktion eller garanterat pling när telefonen är låst. |
 
 Lokal lagring, lokal klocka och den animerade gröna skärmen är inga säkerhetsgränser. Offlinebeteendet är till för demon; en kommande pilot får inte godkänna nya uttag utan serverbekräftelse.
 
 ## QR-koden och iPhone
 
-`dist/signup-qr.png` är en **registreringskod för kunden att skanna**, inte en kod personalen skannar i kassan. Den pekar fortfarande till den tidigare privata demoadressen:
+`dist/signup-qr.png` är en **registreringskod för kunden att skanna**, inte en kod personalen skannar i kassan. Den pekar på:
 
-`https://stammis-kaffe-olle.ollekallgren117.chatgpt.site/#bli-stammis`
+`https://ollebullee.github.io/bryggis/dist/#bli-medlem`
 
-Den adressen kan kräva ChatGPT-åtkomst. Att koden ligger på GitHub ändrar varken QR-länken eller åtkomsten. Skapa en ny registreringskod när pilotens kundadress är fastställd.
+Koden fungerar så fort GitHub Pages är aktiverat och öppnas i mobilens vanliga webbläsare, utan inloggning. Byts adressen inför piloten görs koden om med `python3 tools/make_qr.py <ny adress>`.
 
 För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj **Dela → Lägg till på hemskärmen**. Manifest och service worker finns, men installation och offlinebruk behöver fortfarande verifieras på en fysisk iPhone. Ingen App Store-app eller TestFlight-version ingår.
 
@@ -69,10 +81,13 @@ För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj *
 | `dist/domain.mjs` | Domänregler för den lokala demon |
 | `dist/icons.mjs` | SVG-ikoner och illustration |
 | `dist/sw.js`, `dist/manifest.webmanifest` | Cache och webbappmetadata |
-| `tests/domain.test.mjs` | Nio tester av domänreglerna |
+| `tests/domain.test.mjs` | Tio tester av domänreglerna |
 | `docs/PILOTPLAN.md` | Beslut, förslag och nästa leverans |
+| `docs/bryggis-kundvy.jpg`, `docs/bryggis-personalvy.jpg` | Skärmbilder av demon |
+| `index.html`, `.nojekyll` | Skickar besökare från repots rot till demon på GitHub Pages |
+| `tools/make_qr.py` | Gör om registreringskoden när adressen ändras |
 
-`dist/` är både källkod och publiceringskatalog i den här byggfria demon. Den kan serveras av en statisk webbhost. Repot aktiverar ingen ny hosting automatiskt. En framtida Vite/TypeScript-version ska ha källkod i `src/` och generera `dist/` vid byggning.
+`dist/` är både källkod och publiceringskatalog i den här byggfria demon. Den kan serveras av en statisk webbhost. GitHub Pages serverar den direkt från `main` när Pages är aktiverat. En framtida Vite/TypeScript-version ska ha källkod i `src/` och generera `dist/` vid byggning.
 
 ## Arbeta tillsammans
 

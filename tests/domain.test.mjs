@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus} from '../dist/domain.mjs';
+import {PLAN_TYPES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus} from '../dist/domain.mjs';
 const now=Date.parse('2026-11-04T10:00:00Z');
 test('Förbeställning och kassa delar en kopp; kö kan avbrytas och släppa reservationen',()=>{
   const s=createState(now,false),o=createOrder(s,{minutes:5,drink:'Bryggkaffe'},now);
@@ -36,10 +36,10 @@ test('Stängt, paus och stängningstid begränsar nya beställningar',()=>{
   assert.throws(()=>redeemCounter(t,{},Date.parse('2026-11-04T05:00:00Z')),/stängt/);
   assert.throws(()=>createOrder(t,{minutes:15},Date.parse('2026-11-04T16:50:00Z')),/stängning/);
 });
-test('Abonnemangsbyte skapar aldrig en extra daglig kopp',()=>{
+test('Ny aktivering av abonnemanget skapar aldrig en extra daglig kopp',()=>{
   const s=createState(now,false);redeemCounter(s,{},now);
-  activateSubscription(s,{plan:'any',name:'Alex Andersson',email:'alex@example.com'},now);
-  assert.throws(()=>createOrder(s,{minutes:5},now),/redan/);assert.equal(s.subscription.price,549);
+  activateSubscription(s,{plan:'daily',name:'Alex Andersson',email:'alex@example.com'},now);
+  assert.throws(()=>createOrder(s,{minutes:5},now),/redan/);assert.equal(s.subscription.price,579);
 });
 test('Avslut gäller vid periodslut; månadsslut och skottår klipps rätt',()=>{
   assert.equal(addMonth('2026-01-31'),'2026-02-28');assert.equal(addMonth('2028-01-31'),'2028-02-29');assert.equal(addMonth('2026-12-31'),'2027-01-31');
@@ -48,7 +48,7 @@ test('Avslut gäller vid periodslut; månadsslut och skottår klipps rätt',()=>
 });
 test('Kalkylen visar även när abonnemang kostar mer',()=>{
   const s=createState(now,false),a=savingsFor(s,'daily',4),b=savingsFor(s,'daily',20);
-  assert.equal(a.savings,-143);assert.equal(b.savings,481);assert.equal(b.breakEven,8);
+  assert.equal(a.savings,-423);assert.equal(b.savings,201);assert.equal(b.breakEven,15);
 });
 test('Månatlig förnyelse behåller originaldagen efter februari',()=>{
   const s=createState(Date.parse('2026-01-31T10:00:00Z'),false);
@@ -58,4 +58,10 @@ test('Månatlig förnyelse behåller originaldagen efter februari',()=>{
 test('Äldre demo migreras med daglig reservation och kundnamn kvar',()=>{
   const old={version:1,profile:{name:'Test Kund',email:'test@example.com'},subscription:{plan:'daily',active:true},orders:[],redemptions:{'2026-11-04':{kind:'counter',at:now,drink:'Dagens kaffe'}},history:[],log:[]};
   const s=migrateState(old,now);assert.equal(s.version,2);assert.equal(s.profile.name,'Test Kund');assert.throws(()=>redeemCounter(s,{},now),/redan/);
+});
+test('Piloten har ett enda bryggkaffeabonnemang',()=>{
+  assert.equal(PLAN_TYPES.length,1);
+  assert.deepEqual(PLAN_TYPES[0].drinks,['Bryggkaffe']);
+  assert.equal(createState(now,false).subscription.price,579);
+  assert.ok(createState(now).orders.every(o=>o.drink==='Bryggkaffe'));
 });

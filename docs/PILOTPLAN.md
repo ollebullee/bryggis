@@ -49,6 +49,8 @@ För en riktig pilot behöver följande bevisas: samtidiga beställningsförsök
 
 Senaste förslag från ChatGPT är **det högre av 299 kr per kafé och månad och 5 procent av betalda abonnemangsintäkter efter återbetalningar, exklusive moms**. Plattformsavgiften anges exklusive moms och betalleverantörens avgifter tillkommer. Detta är ett förslag, inte ett beslutat eller marknadsvaliderat pris. Det är inte 299 kr plus fem procent. Börja med manuell fakturering av plattformsavgiften om modellen väljs.
 
+**Kundpris (förslag från Claude):** cirka 15 gånger kaféets pris för en kopp bryggkaffe, avrundat nedåt: 499 kr vid 35 kr, 599 kr vid 40 kr och 649 kr vid 45 kr. Den som kommer varje vardag får då runt 30 % rabatt. Med kalkylatorns antaganden går kaféet ungefär jämnt ut om det kommer en ny kund för varannan daglig stamkund som tecknar sig. Demon använder 579 kr vid 39 kr per kopp. Priset är inte validerat.
+
 ## Innan riktiga avtal och betalningar
 
 Bestäm företag, avtalsansvar och teamets ägande av kod och verksamhet. Ålderskrav och eventuella tillstånd måste kontrolleras för vald företagsform och betalleverantör; anta inte att alla företagsformer kräver samma ålder.
