@@ -44,7 +44,7 @@ Använd exempeluppgifter. Du kan återställa demon under **Konto**. Beställnin
 | Förnyelse och uppsägning | Simuleras med lokala datum. Ingen betaltjänst påverkas. |
 | Riktiga kafébeställningar | Skickas inte till ett kafé. Kön innehåller exempeldata. |
 | Avbokning | Tillåts tills personalen markerar påbörjad. Förslaget om tidslås är ännu inte genomfört. |
-| Utbud | Tre exempelplaner finns. Piloten ska ha ett bryggkaffeabonnemang per kafé. |
+| Utbud | Ett abonnemang, Dagens kaffe: bryggkaffe, en kopp om dagen, 579 kr/mån. Det motsvarar cirka 15 koppar à 39 kr. Kaféet kan ändra priset under Kaféinställningar. |
 | Notiser | Ingen pushfunktion eller garanterat pling när telefonen är låst. |
 
 Lokal lagring, lokal klocka och den animerade gröna skärmen är inga säkerhetsgränser. Offlinebeteendet är till för demon; en kommande pilot får inte godkänna nya uttag utan serverbekräftelse.
@@ -69,7 +69,7 @@ För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj *
 | `dist/domain.mjs` | Domänregler för den lokala demon |
 | `dist/icons.mjs` | SVG-ikoner och illustration |
 | `dist/sw.js`, `dist/manifest.webmanifest` | Cache och webbappmetadata |
-| `tests/domain.test.mjs` | Nio tester av domänreglerna |
+| `tests/domain.test.mjs` | Tio tester av domänreglerna |
 | `docs/PILOTPLAN.md` | Beslut, förslag och nästa leverans |
 
 `dist/` är både källkod och publiceringskatalog i den här byggfria demon. Den kan serveras av en statisk webbhost. Repot aktiverar ingen ny hosting automatiskt. En framtida Vite/TypeScript-version ska ha källkod i `src/` och generera `dist/` vid byggning.
