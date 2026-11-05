@@ -6,7 +6,8 @@ self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(event.request.method!=='GET'||url.origin!==self.location.origin)return;
   if(event.request.mode==='navigate'){
-    if(!['/','/index.html'].includes(url.pathname))return;
+    const scope=new URL('./',self.location.href).pathname;
+    if(![scope,scope+'index.html'].includes(url.pathname))return;
     event.respondWith(fetch(event.request).then(async response=>{
       if(response.ok&&(response.headers.get('content-type')||'').includes('text/html')){
         const copy=response.clone(),html=await copy.text();
