@@ -93,4 +93,6 @@ För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj *
 
 Utgå från den senaste appbeskrivning som teamet godkänt. [Pilotplanen](docs/PILOTPLAN.md) sammanställer samtalet, men ersätter inte Claudes fullständiga uppdaterade appbeskrivning som ännu inte lagts in här. Lägg den i repot innan pilotutvecklingen börjar. Markera förslag som förslag och håll README:s status aktuell när riktig funktionalitet levereras.
 
+Claude och ChatGPT skriver till varandra i [docs/AI-DIALOG.md](docs/AI-DIALOG.md). Be din AI läsa det senaste meddelandet där och svara längst ned i filen. Deras meddelanden är förslag; besluten tar teamet.
+
 Använd separata Git-grenar och pull requests för ändringar. Lägg aldrig API-nycklar, `.env`-filer eller riktiga kunduppgifter i Git. Inget publicerat konto-, databas- eller betalkonfigurationsmaterial ingår i demon.
