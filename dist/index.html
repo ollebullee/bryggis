@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2d241f">
+  <meta name="stammis-build" content="2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="description" content="Din dagliga kaffepaus, lite enklare. Prova Stammis med kaffeabonnemang, förbeställning och en egen vy för kaféet.">
+  <title>Stammis — din dagliga kaffepaus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%232d241f'/%3E%3Cpath d='M16 25h29v16a10 10 0 0 1-10 10h-9a10 10 0 0 1-10-10zM45 27h4a7 7 0 0 1 0 14h-4M24 13v5m10-5v5' stroke='%23e9b960' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="app-icon.png">
+  <script src="app.js" type="module"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Till innehållet</a>
+  <header class="topbar">
+    <a class="wordmark" href="#hem" aria-label="Stammis, hem"><span class="brand-icon" id="brand-icon"></span>stammis<span class="brand-dot">.</span></a>
+    <span class="header-caption">Din plats i kvarteret.</span>
+    <div class="mode-switch" aria-label="Välj vy">
+      <button type="button" data-action="customer" id="customer-mode">Kundvy</button>
+      <button type="button" data-action="staff" id="staff-mode">Personalvy</button>
+    </div>
+    <button class="demo-badge" data-action="about" aria-label="Om demoversionen"><span></span>Demo</button>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Huvudmeny">
+      <div class="cafe-lockup"><div class="cafe-monogram">dk<span>✳</span></div><div><strong data-cafe-name>Ditt Kafé</strong><span>Ditt kaffe, runt hörnet.</span></div></div>
+      <nav id="desktop-nav"></nav>
+      <div class="sidebar-note"><span class="little-spark">✳</span><p>En liten paus.<br>En fin vana.</p><button class="text-link" data-action="install">Lägg på hemskärmen <span aria-hidden="true">↗</span></button></div>
+      <div id="sidebar-status" class="sidebar-bottom"></div>
+    </aside>
+    <main id="main" tabindex="-1"></main>
+  </div>
+  <nav id="mobile-nav" class="mobile-nav" aria-label="Mobilmeny"></nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="connection-banner" class="connection-banner" role="status" hidden>Du är offline. Du kan fortsätta prova demon på den här enheten.</div>
+  <div id="modal-root"></div>
+</body>
+</html>

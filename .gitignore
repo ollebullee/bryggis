@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+.cache/
+.wrangler/
+.openai/
+*.tar.gz
+*.zip
+
+# dist/ innehåller källkoden i den byggfria demon och ska checkas in.
