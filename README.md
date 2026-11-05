@@ -1,6 +1,6 @@
 # Bryggis · kaffeabonnemang för fristående kaféer
 
-Det här repot innehåller teamets klickbara frontenddemo. Gränssnittet visar fortfarande det tidigare arbetsnamnet **Stammis**. Namnet på repot innebär ingen genomförd namnändring i gränssnittet.
+Det här repot innehåller teamets klickbara frontenddemo. Gränssnittet heter **Bryggis**. Namnet är ett arbetsnamn tills domän och varumärke är kontrollerade.
 
 **Status: lokal demo, inte en tjänst för riktiga betalningar eller beställningar.**
 

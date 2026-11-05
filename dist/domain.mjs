@@ -1,4 +1,4 @@
-export const STORAGE_KEY = 'stammis-demo-v1';
+export const STORAGE_KEY = 'bryggis-demo-v1';
 export const TIME_ZONE = 'Europe/Stockholm';
 export const PLAN_TYPES = [
   {id:'daily',name:'Dagens kaffe',price:299,regularPrice:39,description:'Nybryggt kaffe, en kopp om dagen.',benefit:'Bryggkaffe varje dag',drinks:['Bryggkaffe'],popular:true},
