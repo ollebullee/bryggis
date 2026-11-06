@@ -18,6 +18,14 @@ Alternativ hosting: publicera katalogen `dist/` som en statisk webbplats, till e
 
 Varje telefon har sin egen demodata. Kund- och personalvy synkar bara mellan flikar i samma webbläsare.
 
+## Design och mobilvy
+
+Gränssnittet använder en gemensam skala för typografi, avstånd och knappar. Brödtexten är 16 px, hjälprader minst 13 px och beställningsvalen minst 44 px höga. Kundens huvudsakliga uppgift, **Förbered mitt kaffe**, kommer före abonnemangs- och kaféinformationen på mobilen.
+
+Registreringen visar ett enda erbjudande med pris och demoknapp före detaljerna. Dekorationskort, veckokalender och kundens besparingskalkyl är borttagna. Kaffefärgerna och hämtbekräftelsens rörliga remsa, namn och levande klocka finns kvar. Sparåtgärder har vänteläge, dubbeltrycksspärr och tydliga felmeddelanden. Metadata och delningsbild finns i `dist/index.html` och `dist/og-image.png`.
+
+Layouten kontrolleras i webbläsare vid 320, 390 och 768 px samt på dator. Det ersätter inte test på en fysisk iPhone.
+
 ## Kör lokalt
 
 Du behöver Python 3 för den lokala webbservern och Node.js 22 eller senare för testerna. Appen har inga npm-beroenden och kräver inget byggsteg.
@@ -85,7 +93,7 @@ För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj *
 | `dist/sw.js`, `dist/manifest.webmanifest` | Cache och webbappmetadata |
 | `tests/domain.test.mjs` | Tio tester av domänreglerna |
 | `docs/PILOTPLAN.md` | Beslut, förslag och nästa leverans |
-| `docs/bryggis-kundvy.jpg`, `docs/bryggis-personalvy.jpg` | Skärmbilder av demon |
+| `docs/bryggis-kundvy.jpg`, `docs/bryggis-personalvy.jpg` | Skärmbilder från den tidigare layouten |
 | `index.html`, `.nojekyll` | Skickar besökare från repots rot till demon på GitHub Pages |
 | `tools/make_qr.py` | Gör om registreringskoden när adressen ändras |
 
