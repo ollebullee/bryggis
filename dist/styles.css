@@ -576,3 +576,13 @@ html:has(.app-intro[open]) { overflow: hidden; }
   .poster h2 { font-size: 64px; }
   .poster-qr { width: 300px; }
 }
+
+/* Personalkön: ett tryck per kopp och listan På hyllan */
+.queue-head { margin-bottom: var(--space-3); }
+.queue-head h2, .shelf-panel .section-top h2 { font-size: 20px; }
+.eta-label.late { color: var(--red); }
+.shelf-panel { margin-top: var(--space-5); }
+.shelf-row:last-child { border-bottom: 0; }
+.shelf-number { color: var(--muted); font-weight: 500; }
+.shelf-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1) var(--space-3); flex-shrink: 0; }
+.shelf-actions .text-link { font-size: 13px; }

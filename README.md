@@ -48,9 +48,11 @@ npm run check
 ## Vad som fungerar
 
 - Kundflöde med exempelabonnemang, sparad favorit, förbeställning, hämtning i kassan och orderstatus.
-- Personalkö med sökning, filter och knappar för påbörjad, klar, ångra och hämtad.
-- Lokal reservation av dagens kopp, avbokning av köad order, öppettider och daggräns i Europe/Stockholm.
-- Kaféinställningar, historik, CSV-export och återställning av demodata.
+- Personalkö med ett tryck per kopp: **Klar** flyttar beställningen till listan **På hyllan**, där personalen kan **Ångra** eller markera **Ej hämtad**. Kunden bekräftar själv **Jag har hämtat mitt kaffe**.
+- Tre slutstatusar: kundbekräftad hämtning, ej hämtad och avslutad med okänd hämtning. En klar kopp som ingen har bekräftat på 60 minuter avslutas som okänd, ett antagande för piloten. Ingen slutstatus ger en ny dagskopp.
+- Fast avbokningsgräns: kunden kan avbryta tills baristan senast behöver börja. **5 minuter senare** flyttar inte gränsen. Vid **Snarast** får kunden bekräfta att beställningen inte går att avbryta.
+- Lokal reservation av dagens kopp, öppettider och daggräns i Europe/Stockholm.
+- Kaféinställningar, kundens historik med CSV-export och återställning av demodata.
 - Grön hämtbekräftelse med namn, klocka, animation och två minuters giltighet.
 - Synk mellan flikar på samma origin via `localStorage`, Storage Events och BroadcastChannel. Web Locks används där de stöds.
 - Manifest, appikoner och service worker för att prova webbappen på hemskärmen och dess offlinecache.
@@ -67,7 +69,8 @@ Använd exempeluppgifter. Du kan återställa demon under **Konto**. Beställnin
 | Dagskvot och hämtbekräftelse | Kontrolleras lokalt och går att manipulera. Ingen säker serverkontroll. |
 | Förnyelse och uppsägning | Simuleras med lokala datum. Ingen betaltjänst påverkas. |
 | Riktiga kafébeställningar | Skickas inte till ett kafé. Kön innehåller exempeldata. |
-| Avbokning | Tillåts tills personalen markerar påbörjad. Förslaget om tidslås är ännu inte genomfört. |
+| Avbokning | Tidslåset kontrolleras bara lokalt. I piloten måste servern kontrollera avbokning och dagskvot tillsammans. Ångra efter skickad order kräver en serverlösning och ingår inte. |
+| Kapacitet | Inget tak för antal förbeställningar per tidsintervall ännu. |
 | Utbud | Ett abonnemang, Dagens kaffe: bryggkaffe, en kopp om dagen, 579 kr/mån. Det motsvarar cirka 15 koppar à 39 kr. Kaféet kan ändra priset under Kaféinställningar. |
 | Notiser | Ingen pushfunktion eller garanterat pling när telefonen är låst. |
 
