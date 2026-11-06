@@ -24,7 +24,9 @@ Gränssnittet använder en gemensam skala för typografi, avstånd och knappar. 
 
 Registreringen visar ett enda erbjudande med pris och demoknapp före detaljerna. Dekorationskort, veckokalender och kundens besparingskalkyl är borttagna. Kaffefärgerna och hämtbekräftelsens rörliga remsa, namn och levande klocka finns kvar. Sparåtgärder har vänteläge, dubbeltrycksspärr och tydliga felmeddelanden. Metadata och delningsbild finns i `dist/index.html` och `dist/og-image.png`.
 
-Vid öppning visas en cirka 1,4 sekunder lång animation med Bryggis-loggan och en ritad kaffekopp. Den visas inte vid byte mellan vyer, går att hoppa över och hoppas över helt vid minskad rörelse.
+Första gången hemvyn öppnas i en webbläsare visas en cirka 0,65 sekunder lång introduktion med Bryggis-loggan och en ritad kaffekopp. En separat markering i lokal lagring gör att den inte upprepas vid återbesök. Registrering, beställningsstatus, personalvy och andra direktlänkar öppnas utan introduktion. Den går att hoppa över och hoppas över helt vid minskad rörelse eller om markeringen inte kan sparas. Efter registrering kan första hemöppningen visa introduktionen.
+
+När en förbeställning är klar visar hemkortet **Din kopp är klar** och **Jag har hämtat mitt kaffe**. Hämtknappen använder samma registrering som beställningssidan. Registreringsskylten finns under personalens inställningar som **Skylt för nya medlemmar**. Kontot visar period, månadspris och antal koppar; det visar inget snittpris per hittills hämtad kopp.
 
 Layouten kontrolleras i webbläsare vid 320, 390 och 768 px samt på dator. Det ersätter inte test på en fysisk iPhone.
 
@@ -96,7 +98,7 @@ För att prova på iPhone: öppna en åtkomlig HTTPS-adress i Safari och välj *
 | `dist/domain.mjs` | Domänregler för den lokala demon |
 | `dist/icons.mjs` | SVG-ikoner och illustration |
 | `dist/sw.js`, `dist/manifest.webmanifest` | Cache och webbappmetadata |
-| `tests/domain.test.mjs` | Tio tester av domänreglerna |
+| `tests/domain.test.mjs` | Fjorton tester av domänreglerna |
 | `docs/PILOTPLAN.md` | Beslut, förslag och nästa leverans |
 | `docs/bryggis-kundvy.jpg`, `docs/bryggis-personalvy.jpg` | Skärmbilder från den tidigare layouten |
 | `index.html`, `.nojekyll` | Skickar besökare från repots rot till demon på GitHub Pages |

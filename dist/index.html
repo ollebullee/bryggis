@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2d241f">
-  <meta name="bryggis-build" content="5">
+  <meta name="bryggis-build" content="6">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="description" content="Kaffeabonnemang och förbeställning hos ditt lokala kafé. Prova Bryggis i en interaktiv demo utan betalning.">
@@ -44,19 +44,31 @@
     <button type="button" class="intro-skip" autofocus>Hoppa över</button>
   </dialog>
   <script>
-    // Runs independently of the app so the entrance always releases the screen.
+    // Show once, only after the first home view is ready. Never gate a deep link.
     (() => {
       const intro = document.getElementById('app-intro');
+      const seenKey = 'bryggis-intro-seen-v1';
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-      if (reducedMotion.matches || typeof intro.showModal !== 'function') {
+      const seen = () => {
+        try { return localStorage.getItem(seenKey) === '1'; }
+        catch { return true; } // Skip when the preference cannot be persisted.
+      };
+      if (seen() || reducedMotion.matches || typeof intro.showModal !== 'function') {
         intro.remove();
         return;
       }
+      let shown = false;
       let leaving = false;
       let timer;
+      let exitTimer;
       const finish = () => {
+        window.clearTimeout(timer);
+        window.clearTimeout(exitTimer);
+        document.removeEventListener('bryggis:navigate', onNavigate);
+        reducedMotion.removeEventListener('change', onMotionChange);
+        if (!intro.isConnected) return;
         const restoreFocus = intro.contains(document.activeElement);
-        intro.close();
+        if (intro.open) intro.close();
         intro.remove();
         if (restoreFocus) document.querySelector('#main h1')?.focus({preventScroll: true});
       };
@@ -65,15 +77,30 @@
         leaving = true;
         window.clearTimeout(timer);
         intro.classList.add('intro-leaving');
-        window.setTimeout(finish, 220);
+        exitTimer = window.setTimeout(finish, 150);
+      };
+      const onMotionChange = event => { if (event.matches) finish(); };
+      const onNavigate = event => {
+        if (event.detail?.page !== 'hem') {
+          if (shown) finish();
+          return;
+        }
+        if (shown) return;
+        if (seen()) { finish(); return; }
+        try { localStorage.setItem(seenKey, '1'); }
+        catch { finish(); return; }
+        shown = true;
+        try { intro.showModal(); }
+        catch { finish(); return; }
+        timer = window.setTimeout(dismiss, 500);
       };
       intro.querySelector('button').addEventListener('click', dismiss);
       intro.addEventListener('cancel', event => {
         event.preventDefault();
         dismiss();
       });
-      intro.showModal();
-      timer = window.setTimeout(dismiss, 1150);
+      document.addEventListener('bryggis:navigate', onNavigate);
+      reducedMotion.addEventListener('change', onMotionChange);
     })();
   </script>
   <a class="skip-link" href="#main">Till innehållet</a>
