@@ -24,6 +24,8 @@ Gränssnittet använder en gemensam skala för typografi, avstånd och knappar. 
 
 Registreringen visar ett enda erbjudande med pris och demoknapp före detaljerna. Dekorationskort, veckokalender och kundens besparingskalkyl är borttagna. Kaffefärgerna och hämtbekräftelsens rörliga remsa, namn och levande klocka finns kvar. Sparåtgärder har vänteläge, dubbeltrycksspärr och tydliga felmeddelanden. Metadata och delningsbild finns i `dist/index.html` och `dist/og-image.png`.
 
+Vid öppning visas en cirka 1,4 sekunder lång animation med Bryggis-loggan och en ritad kaffekopp. Den visas inte vid byte mellan vyer, går att hoppa över och hoppas över helt vid minskad rörelse.
+
 Layouten kontrolleras i webbläsare vid 320, 390 och 768 px samt på dator. Det ersätter inte test på en fysisk iPhone.
 
 ## Kör lokalt

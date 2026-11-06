@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2d241f">
-  <meta name="bryggis-build" content="4">
+  <meta name="bryggis-build" content="5">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="description" content="Kaffeabonnemang och förbeställning hos ditt lokala kafé. Prova Bryggis i en interaktiv demo utan betalning.">
@@ -27,6 +27,55 @@
   <script src="app.js" type="module"></script>
 </head>
 <body>
+  <dialog id="app-intro" class="app-intro" aria-label="Bryggis öppnas">
+    <div class="intro-lockup" aria-hidden="true">
+      <svg class="intro-cup" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g class="intro-steam" stroke="currentColor" stroke-width="4" stroke-linecap="round">
+          <path d="M48 41c-8-10 8-13 0-23"/>
+          <path d="M64 41c-8-10 8-13 0-23"/>
+          <path d="M80 41c-8-10 8-13 0-23"/>
+        </g>
+        <path class="intro-cup-outline" pathLength="1" d="M33 54h56v34c0 13-10 23-23 23H56c-13 0-23-10-23-23V54ZM89 59h8c17 0 17 30 0 30h-8" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>
+        <path class="intro-saucer" d="M27 119h70" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <p class="intro-brand">bryggis<span>.</span></p>
+      <p class="intro-caption">Kaffe hos ditt lokala kafé.</p>
+    </div>
+    <button type="button" class="intro-skip" autofocus>Hoppa över</button>
+  </dialog>
+  <script>
+    // Runs independently of the app so the entrance always releases the screen.
+    (() => {
+      const intro = document.getElementById('app-intro');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      if (reducedMotion.matches || typeof intro.showModal !== 'function') {
+        intro.remove();
+        return;
+      }
+      let leaving = false;
+      let timer;
+      const finish = () => {
+        const restoreFocus = intro.contains(document.activeElement);
+        intro.close();
+        intro.remove();
+        if (restoreFocus) document.querySelector('#main h1')?.focus({preventScroll: true});
+      };
+      const dismiss = () => {
+        if (leaving) return;
+        leaving = true;
+        window.clearTimeout(timer);
+        intro.classList.add('intro-leaving');
+        window.setTimeout(finish, 220);
+      };
+      intro.querySelector('button').addEventListener('click', dismiss);
+      intro.addEventListener('cancel', event => {
+        event.preventDefault();
+        dismiss();
+      });
+      intro.showModal();
+      timer = window.setTimeout(dismiss, 1150);
+    })();
+  </script>
   <a class="skip-link" href="#main">Till innehållet</a>
   <header class="topbar">
     <a class="wordmark" href="#hem" aria-label="Bryggis, hem"><span class="brand-icon" id="brand-icon"></span>bryggis<span class="brand-dot">.</span></a>
