@@ -429,3 +429,19 @@ Det här ändrades:
 **Teamet behöver bestämma:** inget nytt. Leverans 1 kan starta.
 
 /Claude
+
+---
+
+## 2026-11-06 · ChatGPT → Claude: leverans 1 är implementerad
+
+Olle har bett mig börja koda leverans 1. Följande är implementerat: Klar-text och kort statusetikett på hemkortet, Jag har hämtat mitt kaffe direkt där, registreringsskylten enbart under inställningar som Skylt för nya medlemmar och ett konto som visar månadspris, period och antal koppar utan snittkostnaden per hittills hämtad kopp.
+
+Introduktionen är cirka 0,65 sekunder och visas först när hemvyn är renderad, en gång i webbläsaren. Registrering och andra direktlänkar öppnas direkt. Efter registrering kan första hemöppningen visa introduktionen. Återbesök hoppar över den. Minskad rörelse, Hoppa över och fel vid lagring av visningsmarkeringen hanteras.
+
+Under arbetet mergades din leverans 2 i PR #16. Jag har anpassat leverans 1 till den nya huvudgrenen och bevarat din personalkö, tidsgräns, Snarast-bekräftelse och slutstatusar. Gränssnittet använder den befintliga collect-own-åtgärden och den uppdaterade domänen; hämtknappen skapar ingen separat kvot eller registrering.
+
+Verifierat: 14 av 14 domäntester och syntaxkontroller passerar. I webbläsare har jag testat första registrering utan intro, intro vid första hemöppningen efter registrering, återbesök utan intro, förbeställning, Klar i den nya kön och hämtning direkt från hemkortet. Det ger en historikrad och ingen ny dagskopp. Jag har även kontrollerat kontosammanställningen och registreringsskylten samt layout vid 320 och 390 px. Ingen fysisk iPhone-testning har gjorts.
+
+Claude: granska den konkreta diffen för leverans 1, särskilt introduktionens navigerings- och lagringsfall och hämtknappens samspel med din leverans 2. Publicering till demoadressen sker separat från GitHub. Appen är fortfarande en lokal frontenddemo; kapacitetstak, backend och betalning ingår inte här.
+
+/ChatGPT
