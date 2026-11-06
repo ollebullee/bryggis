@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PLAN_TYPES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus} from '../dist/domain.mjs';
+import {PLAN_TYPES,UNKNOWN_AFTER_MINUTES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus} from '../dist/domain.mjs';
 const now=Date.parse('2026-11-04T10:00:00Z');
 test('Förbeställning och kassa delar en kopp; kö kan avbrytas och släppa reservationen',()=>{
   const s=createState(now,false),o=createOrder(s,{minutes:5,drink:'Bryggkaffe'},now);
@@ -11,16 +11,61 @@ test('Förbeställning och kassa delar en kopp; kö kan avbrytas och släppa res
   assert.equal(s.history.length,1);
   assert.throws(()=>redeemCounter(s,{},now),/redan/);
 });
-test('Påbörjat kaffe kan inte avbrytas; klar/ångra/hämtad är konsekventa och idempotenta',()=>{
+test('Klar direkt från kön; ångra och kundens hämtning registreras bara en gång',()=>{
   const s=createState(now,false),o=createOrder(s,{minutes:10},now);
-  transitionOrder(s,o.id,'start',now+1000);
-  assert.throws(()=>transitionOrder(s,o.id,'cancel',now+2000));
+  assert.throws(()=>transitionOrder(s,o.id,'start',now+1000),/ändrats/);
   transitionOrder(s,o.id,'ready',now+3000);transitionOrder(s,o.id,'undo',now+4000);
-  assert.equal(o.status,'preparing');
+  assert.equal(o.status,'queued');
   transitionOrder(s,o.id,'ready',now+5000);transitionOrder(s,o.id,'collect',now+6000);
-  assert.equal(s.redemptions[s.day].at,now+6000);
+  assert.equal(o.status,'collected');assert.equal(s.redemptions[s.day].at,now+6000);
   assert.throws(()=>transitionOrder(s,o.id,'collect',now+7000));
+  assert.throws(()=>transitionOrder(s,o.id,'undo',now+7000));
   assert.equal(s.history.length,1);assert.equal(s.log.length,1);
+});
+test('Avbokning stängs vid en fast gräns som senare ankomst inte flyttar',()=>{
+  const s=createState(now,false),o=createOrder(s,{minutes:10},now);
+  assert.equal(o.cancelUntil,o.dueAt-s.cafe.prepMinutes*60000);
+  transitionOrder(s,o.id,'delay',now+60000);transitionOrder(s,o.id,'delay',now+120000);
+  assert.equal(o.cancelUntil,now+6*60000);
+  assert.throws(()=>transitionOrder(s,o.id,'cancel',o.cancelUntil),/inte längre/);
+  assert.equal(o.status,'queued');
+  const t=createState(now,false),p=createOrder(t,{minutes:10},now);
+  transitionOrder(t,p.id,'cancel',p.cancelUntil-1000);
+  assert.equal(p.status,'cancelled');createOrder(t,{minutes:5},now);
+});
+test('Snarast kan inte avbokas, och gränsen gäller även efter omladdning',()=>{
+  const s=createState(now,false),o=createOrder(s,{minutes:0},now);
+  assert.equal(o.cancelUntil,now);
+  assert.throws(()=>transitionOrder(s,o.id,'cancel',now),/inte längre/);
+  const t=createState(now,false),p=createOrder(t,{minutes:15},now);
+  const reloaded=migrateState(JSON.parse(JSON.stringify(t)),now+60000),q=reloaded.orders.find(x=>x.id===p.id);
+  assert.equal(q.cancelUntil,p.cancelUntil);
+  assert.throws(()=>transitionOrder(reloaded,q.id,'cancel',p.cancelUntil+1000),/inte längre/);
+});
+test('Ej hämtad och okänd hämtning ger aldrig en ny dagskopp och räknas inte som hämtade',()=>{
+  const s=createState(now,false),o=createOrder(s,{minutes:5},now);
+  transitionOrder(s,o.id,'ready',now+5*60000);transitionOrder(s,o.id,'no-show',now+25*60000);
+  assert.equal(o.status,'not_collected');
+  assert.throws(()=>transitionOrder(s,o.id,'collect',now+26*60000));
+  assert.throws(()=>createOrder(s,{minutes:5},now+26*60000),/redan/);
+  assert.throws(()=>redeemCounter(s,{},now+26*60000),/redan/);
+  assert.equal(s.log.length,0);assert.equal(s.history.length,0);
+  const t=createState(now,false),p=createOrder(t,{minutes:5},now);
+  transitionOrder(t,p.id,'ready',now+5*60000);
+  rollState(t,now+5*60000+(UNKNOWN_AFTER_MINUTES*60000)-1000);assert.equal(p.status,'ready');
+  rollState(t,now+5*60000+UNKNOWN_AFTER_MINUTES*60000);
+  assert.equal(p.status,'unknown');assert.equal(p.closedAt,now+5*60000+UNKNOWN_AFTER_MINUTES*60000);
+  assert.throws(()=>transitionOrder(t,p.id,'collect',now+90*60000));
+  assert.throws(()=>redeemCounter(t,{},now+90*60000),/redan/);
+  assert.equal(t.log.length,0);assert.equal(t.history.length,0);
+});
+test('Äldre demodata med Börja-steget går tillbaka till kön utan ny avbokningsrätt',()=>{
+  const s=createState(now,false),o=createOrder(s,{minutes:20},now);
+  o.status='preparing';o.startedAt=now+1000;delete o.cancelUntil;
+  const m=migrateState(JSON.parse(JSON.stringify(s)),now+2000),x=m.orders.find(y=>y.id===o.id);
+  assert.equal(x.status,'queued');assert.equal(x.cancelUntil,now);
+  assert.throws(()=>transitionOrder(m,x.id,'cancel',now+3000),/inte längre/);
+  assert.ok(createState(now).orders.every(y=>['queued','ready'].includes(y.status)&&Number.isFinite(y.cancelUntil)));
 });
 test('Daggränsen använder Stockholm under vintertid och sommartid',()=>{
   assert.equal(dayKey(Date.parse('2026-11-04T23:01:00Z')),'2026-11-05');

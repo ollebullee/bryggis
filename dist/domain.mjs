@@ -5,7 +5,15 @@ export const TIME_ZONE = 'Europe/Stockholm';
 export const PLAN_TYPES = [
   {id:'daily',name:'Dagens kaffe',price:579,regularPrice:39,description:'Nybryggt kaffe, en kopp om dagen.',benefit:'Bryggkaffe varje dag',drinks:['Bryggkaffe']}
 ];
-const ACTIVE_ORDERS = ['queued','preparing','ready'];
+// En beställning går I kön → Klar → en av tre slutstatusar:
+// collected (kunden bekräftade hämtningen), not_collected (personalen markerade Ej hämtad)
+// eller unknown (ingen bekräftelse inom UNKNOWN_AFTER_MINUTES). Ingen slutstatus ger en ny dagskopp.
+const ACTIVE_ORDERS = ['queued','ready'];
+// Pilotantagande: hur länge en klar kopp väntar innan den avslutas som "hämtning okänd".
+export const UNKNOWN_AFTER_MINUTES = 60;
+// Äldre sparad demodata kan ha statusen preparing från tiden med Börja-knappen.
+// Den saknar avbokningsgräns och får därför ingen ny möjlighet att avbokas.
+const normalizeOrder = o => ({...o,status:o.status==='preparing'||o.status==='pending'?'queued':o.status,cancelUntil:Number.isFinite(o.cancelUntil)?o.cancelUntil:o.createdAt});
 export class AppError extends Error { constructor(message){super(message);this.name='AppError';} }
 export function dayKey(time=Date.now()) {return new Intl.DateTimeFormat('sv-SE',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(time));}
 export function minutesOfDay(time=Date.now()) {const parts=new Intl.DateTimeFormat('en-GB',{timeZone:TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(time));return Number(parts.find(p=>p.type==='hour').value)*60+Number(parts.find(p=>p.type==='minute').value);}
@@ -21,10 +29,10 @@ export function createState(now=Date.now(),samples=true) {
     profile:{name:'Alex Andersson',email:'alex@example.com',favorite:{drink:'Bryggkaffe',milk:'Svart',takeaway:true}},
     subscription:{plan:'daily',price:579,active:true,cancelling:false,periodStart:day,periodEnd:addMonth(day),billingDay:Number(day.slice(-2))},
     orders:samples?[
-      {id:'example-nora',name:'Nora A.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-120000,dueAt:now+4*60000,status:'preparing',startedAt:now-30000,own:false,day,number:'101'},
-      {id:'example-sara',name:'Sara L.',drink:'Bryggkaffe',milk:'Havredryck',takeaway:true,fika:false,createdAt:now-90000,dueAt:now+9*60000,status:'queued',own:false,day,number:'102'},
-      {id:'example-omar',name:'Omar K.',drink:'Bryggkaffe',milk:'Vanlig mjölk',takeaway:false,fika:false,createdAt:now-60000,dueAt:now+12*60000,status:'queued',own:false,day,number:'103'},
-      {id:'example-elin',name:'Elin B.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-8*60000,dueAt:now-60000,status:'ready',startedAt:now-6*60000,readyAt:now-60000,own:false,day,number:'104'}
+      {id:'example-nora',name:'Nora A.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-120000,dueAt:now+4*60000,cancelUntil:now-120000,status:'queued',own:false,day,number:'101'},
+      {id:'example-sara',name:'Sara L.',drink:'Bryggkaffe',milk:'Havredryck',takeaway:true,fika:false,createdAt:now-90000,dueAt:now+9*60000,cancelUntil:now+5*60000,status:'queued',own:false,day,number:'102'},
+      {id:'example-omar',name:'Omar K.',drink:'Bryggkaffe',milk:'Vanlig mjölk',takeaway:false,fika:false,createdAt:now-60000,dueAt:now+12*60000,cancelUntil:now+8*60000,status:'queued',own:false,day,number:'103'},
+      {id:'example-elin',name:'Elin B.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-8*60000,dueAt:now-60000,cancelUntil:now-5*60000,status:'ready',readyAt:now-60000,own:false,day,number:'104'}
     ]:[],redemptions:{},history:[],log:samples?[
       {id:'log-jonas',name:'Jonas P.',drink:'Bryggkaffe',at:now-7*60000,kind:'counter',sample:true},
       {id:'log-maja',name:'Maja S.',drink:'Bryggkaffe',at:now-10*60000,kind:'preorder',sample:true},
@@ -41,7 +49,7 @@ export function migrateState(raw,now=Date.now()) {
     if(validString(raw.profile?.email))base.profile.email=raw.profile.email;
     if(PLAN_TYPES.some(p=>p.id===raw.subscription?.plan))base.subscription={...base.subscription,...raw.subscription,price:PLAN_TYPES.find(p=>p.id===raw.subscription.plan).price};
     base.cafe.paused=raw.acceptingOrders===false;
-    base.orders=Array.isArray(raw.orders)?raw.orders.filter(o=>validString(o.id)&&validString(o.name,60)&&Number.isFinite(o.createdAt)&&Number.isFinite(o.dueAt)).map((o,i)=>({...o,status:o.status==='pending'?'queued':o.status,day:dayKey(o.createdAt),number:String(101+i),milk:'Svart',takeaway:true,fika:false})):base.orders;
+    base.orders=Array.isArray(raw.orders)?raw.orders.filter(o=>validString(o.id)&&validString(o.name,60)&&Number.isFinite(o.createdAt)&&Number.isFinite(o.dueAt)).map((o,i)=>normalizeOrder({...o,day:dayKey(o.createdAt),number:String(101+i),milk:'Svart',takeaway:true,fika:false})):base.orders;
     base.nextNumber=101+base.orders.length;
     base.redemptions=raw.redemptions&&typeof raw.redemptions==='object'?raw.redemptions:{};
     base.history=Array.isArray(raw.history)?raw.history.filter(h=>Number.isFinite(h.at)&&validString(h.drink)).slice(0,300):[];
@@ -50,7 +58,7 @@ export function migrateState(raw,now=Date.now()) {
   }
   if(!validString(raw.profile?.name,60)||!validString(raw.profile?.email)||!Array.isArray(raw.orders)||!Array.isArray(raw.history)||!Array.isArray(raw.log)||!raw.redemptions||typeof raw.redemptions!=='object'||!PLAN_TYPES.some(p=>p.id===raw.subscription?.plan)||!validTime(raw.cafe?.open)||!validTime(raw.cafe?.close)||!validString(raw.cafe?.name,60))return base;
   const next={...base,...raw,cafe:{...base.cafe,...raw.cafe,prices:{...base.cafe.prices,...raw.cafe.prices},regularPrices:{...base.cafe.regularPrices,...raw.cafe.regularPrices}},profile:{...base.profile,...raw.profile,favorite:{...base.profile.favorite,...raw.profile.favorite}},subscription:{...base.subscription,...raw.subscription}};
-  next.orders=next.orders.filter(o=>validString(o.id)&&validString(o.name,60)&&validString(o.drink)&&Number.isFinite(o.createdAt)&&Number.isFinite(o.dueAt)).slice(-300);
+  next.orders=next.orders.filter(o=>validString(o.id)&&validString(o.name,60)&&validString(o.drink)&&Number.isFinite(o.createdAt)&&Number.isFinite(o.dueAt)).slice(-300).map(normalizeOrder);
   next.history=next.history.filter(h=>Number.isFinite(h.at)&&validString(h.drink)).slice(0,300);
   next.log=next.log.filter(l=>Number.isFinite(l.at)&&validString(l.name,60)&&validString(l.drink)).slice(0,300);
   next.cafe.prepMinutes=Math.min(20,Math.max(1,Number(next.cafe.prepMinutes)||4));
@@ -67,6 +75,10 @@ export function migrateState(raw,now=Date.now()) {
 export function rollState(state,now=Date.now()) {
   const today=dayKey(now);
   if(state.day!==today){state.day=today;state.orders=state.orders.filter(o=>(o.day||dayKey(o.createdAt))===today);state.log=state.log.filter(l=>dayKey(l.at)===today);}
+  for(const o of state.orders){
+    const readyAt=Number.isFinite(o.readyAt)?o.readyAt:o.dueAt;
+    if(o.status==='ready'&&now-readyAt>=UNKNOWN_AFTER_MINUTES*60000){o.status='unknown';o.closedAt=readyAt+UNKNOWN_AFTER_MINUTES*60000;}
+  }
   let safety=0;
   while(state.subscription.active&&today>=state.subscription.periodEnd&&safety++<120){
     if(state.subscription.cancelling){state.subscription.active=false;break;}
@@ -103,7 +115,8 @@ export function createOrder(state,input,now=Date.now()) {
   if(![0,5,10,15,20].includes(minutes))throw new AppError('Välj en giltig hämtningstid.');
   const delay=Math.max(state.cafe.prepMinutes,minutes),status=openStatus(state,now);
   if(delay>=status.remaining)throw new AppError('Den tiden är efter stängning. Välj en tidigare hämtning.');
-  const order={id:uid(),number:String(state.nextNumber++),day:dayKey(now),name:state.profile.name,...normalizeDrink(state,input),createdAt:now,dueAt:now+delay*60000,status:'queued',own:true};
+  // Avbokningsgränsen sätts en gång, när baristan senast behöver börja. Senare ankomst flyttar den aldrig.
+  const order={id:uid(),number:String(state.nextNumber++),day:dayKey(now),name:state.profile.name,...normalizeDrink(state,input),createdAt:now,dueAt:now+delay*60000,cancelUntil:now+(delay-state.cafe.prepMinutes)*60000,status:'queued',own:true};
   state.orders.push(order);state.redemptions[dayKey(now)]={kind:'preorder',orderId:order.id,at:now,drink:order.drink};return order;
 }
 export function redeemCounter(state,input,now=Date.now()) {
@@ -115,16 +128,17 @@ export function transitionOrder(state,id,action,now=Date.now()) {
   const order=state.orders.find(o=>o.id===id);
   if(!order)throw new AppError('Beställningen finns inte längre.');
   if((order.day||dayKey(order.createdAt))!==dayKey(now))throw new AppError('Beställningen tillhör en tidigare dag.');
-  if(action==='start'&&order.status==='queued'){order.status='preparing';order.startedAt=now;}
-  else if(action==='ready'&&['queued','preparing'].includes(order.status)){order.previousStatus=order.status;order.status='ready';order.readyAt=now;}
-  else if(action==='undo'&&order.status==='ready'){order.status=order.previousStatus==='queued'?'queued':'preparing';delete order.readyAt;}
+  if(action==='ready'&&order.status==='queued'){order.status='ready';order.readyAt=now;}
+  else if(action==='undo'&&order.status==='ready'){order.status='queued';delete order.readyAt;}
+  else if(action==='no-show'&&order.status==='ready'){order.status='not_collected';order.closedAt=now;}
   else if(action==='collect'&&order.status==='ready'){
-    order.status='collected';order.collectedAt=now;
+    order.status='collected';order.collectedAt=now;order.closedAt=now;
     const record={id:order.id,kind:'preorder',at:now,drink:order.drink,milk:order.milk,takeaway:order.takeaway,fika:order.fika};
     state.log.unshift({...record,name:order.name});
     if(order.own){state.history.unshift(record);const r=state.redemptions[order.day];if(r?.orderId===id)r.at=now;}
   }
   else if(action==='cancel'&&order.status==='queued'){
+    if(now>=order.cancelUntil)throw new AppError('Baristan kan ha börjat, så beställningen går inte längre att avbryta.');
     order.status='cancelled';if(order.own&&state.redemptions[order.day]?.orderId===id)delete state.redemptions[order.day];
   }
   else if(action==='delay'&&ACTIVE_ORDERS.includes(order.status)){
