@@ -395,6 +395,34 @@ form > .primary { width: 100%; margin-top: var(--space-5); }
 .pickup-receipt strong { text-align: right; }
 .pickup-bottom > .primary { width: 100%; background: white; color: #185c36; }
 .pickup-bottom > p { color: #e2f1e7; font-size: 13px; text-align: center; margin-top: var(--space-3); }
+/* A brief entrance on page load; native dialog keeps focus above the app. */
+html:has(.app-intro[open]) { overflow: hidden; }
+.app-intro {
+  position: fixed; inset: 0; margin: 0; padding: var(--space-5);
+  width: 100vw; height: 100dvh; max-width: none; max-height: none;
+  border: 0; background: var(--ink); color: var(--surface); overflow: hidden;
+}
+.app-intro:not([open]) { display: none; }
+.app-intro[open] { display: grid; place-items: center; }
+.app-intro::backdrop { background: var(--ink); }
+.intro-lockup { text-align: center; animation: intro-reveal 400ms cubic-bezier(.2,.7,.2,1) both; }
+.intro-cup { display: block; width: 112px; height: 112px; margin: 0 auto var(--space-5); color: #e9b960; }
+.intro-cup-outline { stroke-dasharray: 1; stroke-dashoffset: 1; animation: intro-draw 650ms ease-out 80ms forwards; }
+.intro-saucer { transform-origin: center; animation: intro-reveal 400ms ease 300ms both; }
+.intro-steam path { transform-box: fill-box; transform-origin: center; animation: intro-steam 850ms ease-out both; }
+.intro-steam path:nth-child(2) { animation-delay: 100ms; }
+.intro-steam path:nth-child(3) { animation-delay: 200ms; }
+.intro-brand { color: var(--surface); font-size: clamp(44px, 10vw, 56px); line-height: 1.1; font-weight: 750; letter-spacing: -.06em; }
+.intro-brand span { color: #e9b960; }
+.intro-caption { color: #d3c6b6; font-size: 14px; margin-top: var(--space-4); }
+.intro-skip { position: absolute; left: 50%; bottom: calc(var(--space-5) + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); min-height: 44px; padding: var(--space-3) var(--space-5); border: 0; border-radius: var(--control-radius); background: transparent; color: #e7dcd0; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.intro-skip:focus-visible { outline-color: #e9b960; }
+.app-intro.intro-leaving { animation: intro-exit 220ms ease-in forwards; }
+.app-intro.intro-leaving::backdrop { animation: intro-exit 220ms ease-in forwards; }
+@keyframes intro-reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes intro-draw { to { stroke-dashoffset: 0; } }
+@keyframes intro-steam { 0% { opacity: 0; transform: translateY(8px); } 40%, 100% { opacity: .9; transform: translateY(0); } }
+@keyframes intro-exit { to { opacity: 0; } }
 @media (min-width: 1440px) {
   #main { padding: var(--space-7) var(--space-8); }
 }
@@ -536,6 +564,7 @@ form > .primary { width: 100%; margin-top: var(--space-5); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
   .button-spinner { animation: none; }
+  .app-intro, .app-intro::backdrop, .app-intro * { animation: none !important; }
   .live-strip { animation-duration: 6s; }
 }
 @media print {
