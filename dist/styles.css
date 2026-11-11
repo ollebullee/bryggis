@@ -589,3 +589,32 @@ html:has(.app-intro[open]) { overflow: hidden; }
 .shelf-number { color: var(--muted); font-weight: 500; }
 .shelf-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-1) var(--space-3); flex-shrink: 0; }
 .shelf-actions .text-link { font-size: 13px; }
+
+/* Designrunda: tabulära siffror, inre radie, balanserade rubriker och en bild av appen */
+:root { --inner-radius: 8px; }
+body { font-variant-numeric: tabular-nums; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+/* Ytor inne i en panel: inre radie = yttre radie minus utfyllnad, men aldrig mindre än 8 px */
+.current-cup, .active-drink, .counter-drink, .next-cup, .checkout-summary, .cafe-modal-info { border-radius: var(--inner-radius); }
+
+.product-peek { margin: 0 0 var(--space-6); }
+.peek-screens { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+.peek-card, .peek-green { border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; font-size: 13px; line-height: 1.35; }
+.peek-card { background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.peek-card .status-pill { align-self: flex-start; }
+.peek-card strong, .peek-green strong { font-size: 16px; line-height: 1.2; }
+.peek-card > span:not(.status-pill):not(.peek-button) { color: var(--muted); }
+.peek-button { margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 6px; background: var(--ink); color: var(--surface); border-radius: var(--inner-radius); padding: 8px; font-weight: 700; font-size: 12px; }
+.peek-button svg { width: 14px; height: 14px; flex-shrink: 0; }
+.peek-green { background: #207345; color: #fff; align-items: center; justify-content: center; text-align: center; }
+.peek-check { width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #207345; display: grid; place-items: center; }
+.peek-check svg { width: 22px; height: 22px; }
+.peek-clock { font-size: 22px; font-weight: 700; letter-spacing: .02em; }
+.product-peek figcaption { margin-top: var(--space-3); color: var(--muted); font-size: 14px; line-height: 1.45; }
+
+/* Kort återkoppling när en kopp markeras Klar och hamnar på hyllan */
+.shelf-row { border-radius: var(--inner-radius); }
+@keyframes shelf-in { from { opacity: 0; transform: translateY(-4px); background: var(--green-soft); } 50% { opacity: 1; transform: none; background: var(--green-soft); } to { background: transparent; } }
+.shelf-row.just-added { animation: shelf-in 1.2s ease-out; }
+@media (prefers-reduced-motion: reduce) { .shelf-row.just-added { animation: none; } }
