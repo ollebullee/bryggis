@@ -1,4 +1,4 @@
-import {STORAGE_KEY,TIME_ZONE,PLAN_TYPES,UNKNOWN_AFTER_MINUTES,DEFAULT_SLOT_CAPACITY,slotFor,slotIsFull,pickupDue,nextFreeMinutes,AppError,dayKey,addDays,createState,migrateState,rollState,planFor,redemptionFor,currentOrder,openStatus,normalizeDrink,createOrder,redeemCounter,transitionOrder,activateSubscription} from './domain.mjs';
+import {STORAGE_KEY,TIME_ZONE,PLAN_TYPES,UNKNOWN_AFTER_MINUTES,DEFAULT_SLOT_CAPACITY,slotFor,slotIsFull,pickupDue,pickupFits,nextFreePickupAt,AppError,dayKey,addDays,createState,migrateState,rollState,planFor,redemptionFor,currentOrder,openStatus,normalizeDrink,createOrder,redeemCounter,transitionOrder,activateSubscription} from './domain.mjs';
 import {icon,art} from './icons.mjs';
 
 const $=s=>document.querySelector(s);
@@ -11,7 +11,7 @@ function load(){try{return migrateState(JSON.parse(localStorage.getItem(STORAGE_
 state=load();
 const plan=()=>planFor(state),order=()=>currentOrder(state),used=()=>redemptionFor(state),firstName=()=>state.profile.name.trim().split(/\s+/)[0];
 const activeOrder=()=>['queued','preparing','ready'].includes(order()?.status)?order():null;
-let ui={page:'hem',mode:'customer',plan:state.subscription.plan,minutes:5,draft:normalizeDrink(state,state.profile.favorite),filter:'all',search:'',busy:false,settingsDirty:false,customizing:false};
+let ui={page:'hem',mode:'customer',plan:state.subscription.plan,minutes:5,pickupAt:null,draft:normalizeDrink(state,state.profile.favorite),filter:'all',search:'',busy:false,settingsDirty:false,customizing:false};
 let toastTimer,ticketTimer,lastFocus,channel,installPrompt,writeChain=Promise.resolve();
 try{channel=new BroadcastChannel('bryggis-demo-v2');channel.onmessage=()=>sync();}catch{}
 function persist(){state.revision=(Number(state.revision)||0)+1;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state));storageOK=true;channel?.postMessage('changed');}catch{storageOK=false;}}
@@ -81,23 +81,27 @@ function membership(){
   </section>`;
 }
 function choices(label,values,current,action){return `<fieldset class="choice-field"><legend>${label}</legend><div class="choice-options">${values.map(([v,l],i)=>button(action,l,`choice ${String(current)===String(v)?'selected':''}`,String(v),`id="choice-${action}-${i}" aria-pressed="${String(current)===String(v)}"`)).join('')}</div></fieldset>`;}
-// Kapacitetstaket i tidsvalet: fulla tider visas som Fullt. Är alla vanliga tider fulla eller efter stängning
-// läggs nästa lediga tid före stängning till som ett eget val.
-function timeChoiceState(){
-  const remaining=openStatus(state).remaining,isFull=n=>slotIsFull(state,slotFor(pickupDue(state,n)));
-  const nextFree=nextFreeMinutes(state,0),timeChoices=[0,5,10,15,20];
-  if(nextFree!==null&&nextFree>20&&timeChoices.every(n=>isFull(n)||Math.max(state.cafe.prepMinutes,n)>=remaining))timeChoices.push(nextFree);
-  if(!timeChoices.includes(ui.minutes))timeChoices.push(ui.minutes);
-  timeChoices.sort((a,b)=>a-b);
-  return {timeChoices,isFull,nextFree,signature:timeChoices.map(n=>`${n}:${isFull(n)?1:0}`).join(',')+`|${nextFree}`};
+function timeChoiceState(now=Date.now()){
+  const availability=openStatus(state,now);
+  const choice=(value,at,label,exact=false)=>{
+    const fits=pickupFits(state,at,now);
+    const full=fits&&slotIsFull(state,slotFor(at));
+    return {value,at,label,exact,full,available:availability.accepting&&fits&&!full};
+  };
+  const options=[0,5,10,15,20].map(minutes=>choice(
+    String(minutes),pickupDue(state,minutes,now),minutes===0?'Snarast':`${minutes} min`
+  ));
+  const extra=options.some(o=>o.available)?null:nextFreePickupAt(state,undefined,now);
+  for(const at of new Set([extra,ui.pickupAt])){
+    if(at!==null)options.push(choice(`at-${at}`,at,`Hämta ${time(at)}`,true));
+  }
+  const key=ui.pickupAt===null?String(ui.minutes):`at-${ui.pickupAt}`;
+  const selected=options.find(o=>o.value===key);
+  const signature=options.map(o=>`${o.value}:${Number(o.available)}:${Number(o.full)}`).join(',');
+  return {availability,options,selected,signature};
 }
 function composer(){
-  const p=plan(),r=used(),o=activeOrder(),availability=openStatus(state),d=ui.draft;
-  const pickupMinutes=Math.max(state.cafe.prepMinutes,ui.minutes);
-  const {timeChoices,isFull,nextFree,signature}=timeChoiceState();
-  ui.fullSignature=signature;
-  const selectedFull=isFull(ui.minutes);
-  const canOrder=availability.accepting&&pickupMinutes<availability.remaining&&!selectedFull;
+  const p=plan(),r=used(),o=activeOrder(),d=ui.draft;
   if(!state.subscription.active)return `<section class="panel empty-state">
     <h2>Välj ett abonnemang</h2><p>Ditt demoabonnemang har avslutats.</p>
     ${button('plans','Visa abonnemang '+icon('arrow'))}
@@ -127,6 +131,23 @@ function composer(){
     ${r.kind==='counter'&&Date.now()-r.at<120000?button('show-ticket','Visa hämtbekräftelsen','secondary'):''}
     <div class="next-cup"><span>${icon('calendar')}Nästa kopp</span><strong>${dateLabel(addDays(dayKey(),1))} från ${state.cafe.open}</strong></div>
   </section>`;
+  const now=Date.now();
+  const {availability,options,selected,signature}=timeChoiceState(now);
+  ui.timeSignature=signature;
+  const next=options.find(option=>option.available);
+  let unavailableTitle,unavailableText;
+  if(!availability.open){
+    unavailableTitle='Kaféet är stängt';
+    unavailableText=`Öppet ${state.cafe.open}–${state.cafe.close}.`;
+  }else if(!availability.accepting){
+    unavailableTitle='Förbeställningarna är pausade';
+    unavailableText='Du kan hämta i kassan.';
+  }else if(!selected.available){
+    unavailableTitle=selected.full?'Den tiden är full':'Tiden går inte längre att boka';
+    if(next)unavailableText=next.exact?`Nästa lediga tid är ${time(next.at)}.`:'Välj en ledig tid i listan.';
+    else if(pickupFits(state,pickupDue(state,0,now),now))unavailableText='Alla tider är fulla just nu. Du kan hämta direkt i kassan.';
+    else unavailableText=`Du kan hämta i kassan före ${state.cafe.close}.`;
+  }
   const milkChoices=['Caffè latte','Cappuccino','Flat white'].includes(d.drink)
     ?[['Vanlig mjölk','Vanlig mjölk'],['Havredryck','Havredryck']]
     :[['Svart','Svart'],['Vanlig mjölk','Mjölk'],['Havredryck','Havredryck']];
@@ -149,14 +170,18 @@ function composer(){
     </details>
     <div class="arrival-heading"><h2 id="arrival-title">När vill du hämta?</h2><span id="prep-time">Minst ${state.cafe.prepMinutes} min tillagning</span></div>
     <div class="time-options" role="group" aria-labelledby="arrival-title" aria-describedby="prep-time">
-      ${timeChoices.map(n=>{const full=isFull(n),label=n===0?'Snarast':n>20?time(pickupDue(state,n)):`${n} min`;return button('time',full?`${label}<span class="time-full">Fullt</span>`:label,`${ui.minutes===n?'selected':''}${full?' full':''}`,String(n),`id="pickup-time-${n}" aria-pressed="${ui.minutes===n}"${full?` aria-label="${label}, fullt"${ui.minutes===n?'':' disabled'}`:''}`);}).join('')}
+      ${options.map(option=>{
+        const current=option===selected;
+        const label=option.full?`${option.label}<span class="time-full">Fullt</span>`:option.label;
+        const classes=`${current?'selected':''}${option.full?' full':''}${option.exact?' exact-time':''}`;
+        return button('time',label,classes,option.value,
+          `id="pickup-time-${option.value}" aria-pressed="${current}"${option.full?` aria-label="${option.label}, fullt"`:''}${option.available?'':' disabled'}`);
+      }).join('')}
     </div>
-    ${canOrder?`<p class="planned-time"><span>Beräknad hämtning</span><time id="planned-pickup">${time(Date.now()+pickupMinutes*60000)}</time></p>`:`<div class="availability-note" id="preorder-unavailable">
-      ${icon('time')}<div>
-        <strong>${availability.reason==='closed'?'Kaféet är stängt':availability.reason==='paused'?'Förbeställningarna är pausade':selectedFull&&pickupMinutes<availability.remaining?'Den tiden är full':'Den tiden är för nära stängning'}</strong>
-        <p>${availability.reason==='closed'?`Öppet ${state.cafe.open}–${state.cafe.close}.`:availability.reason==='paused'?'Du kan hämta i kassan.':selectedFull&&pickupMinutes<availability.remaining?(nextFree===null?'Alla tider är fulla just nu. Du kan hämta direkt i kassan.':`Nästa lediga tid är ${time(pickupDue(state,nextFree))}.`):`Välj en tidigare tid eller hämta i kassan före ${state.cafe.close}.`}</p>
-      </div></div>`}
-    ${button('preorder','Förbered mitt kaffe '+icon('arrow'),'primary','',canOrder?'':'disabled aria-describedby="preorder-unavailable"')}
+    ${selected.available?`<p class="planned-time"><span>Beräknad hämtning</span><time id="planned-pickup">${time(selected.at)}</time></p>`:`<div class="availability-note" id="preorder-unavailable">
+      ${icon('time')}<div><strong>${unavailableTitle}</strong><p>${unavailableText}</p></div>
+    </div>`}
+    ${button('preorder','Förbered mitt kaffe '+icon('arrow'),'primary','',selected.available?'':'disabled aria-describedby="preorder-unavailable"')}
     ${button('counter','Hämta i kassan','secondary','',availability.open?'':'disabled')}
   </section>`;
 }
@@ -316,7 +341,11 @@ document.addEventListener('click',async e=>{
   try{
     if(routes[a]){closeModal();navigate(routes[a]);return;}
     if(a==='close')return closeModal();if(a==='about')return about();if(a==='checkout')return checkout();if(a==='counter')return counterConfirm();if(a==='show-ticket')return ticket();if(a==='poster')return poster();if(a==='print')return window.print();if(a==='install')return install();
-    if(a==='time'){ui.minutes=Number(v);render();return;}
+    if(a==='time'){
+      ui.pickupAt=v.startsWith('at-')?Number(v.slice(3)):null;
+      if(ui.pickupAt===null)ui.minutes=Number(v);
+      render();return;
+    }
     if(a==='drink'){ui.draft=normalizeDrink(state,{...ui.draft,drink:v});render();return;}
     if(a==='milk'){ui.draft.milk=v;render();return;}
     if(a==='takeaway'){ui.draft.takeaway=v==='true';render();return;}
@@ -325,8 +354,13 @@ document.addEventListener('click',async e=>{
     if(a==='select-plan'){ui.plan=v;render();document.querySelector(`[data-action="select-plan"][data-value="${v}"]`)?.focus({preventScroll:true});return;}
     if(pendingLabels[a]){if(ui.busy)return;ui.busy=true;restorePending=pendingButton(el,pendingLabels[a]);}
     if(a==='save-favorite'){await transaction(s=>{s.profile.favorite=normalizeDrink(s,ui.draft);});toast('Din favorit är sparad.');return;}
-    if(a==='preorder'&&ui.minutes===0)return confirm('Förbereda kaffet så snart som möjligt?','Baristan kan börja direkt, så när du har skickat beställningen går den inte att avbryta.','confirm-preorder','Skicka beställningen');
-    if(a==='preorder'||a==='confirm-preorder'){closeModal();await transaction(s=>createOrder(s,{...ui.draft,minutes:a==='confirm-preorder'?0:ui.minutes}));navigate('bestallning');toast('Beställningen ligger i baristans kö.');return;}
+    if(a==='preorder'&&ui.pickupAt===null&&ui.minutes===0)return confirm('Förbereda kaffet så snart som möjligt?','Baristan kan börja direkt, så när du har skickat beställningen går den inte att avbryta.','confirm-preorder','Skicka beställningen');
+    if(a==='preorder'||a==='confirm-preorder'){
+      const selection=a==='confirm-preorder'?{minutes:0}:ui.pickupAt===null?{minutes:ui.minutes}:{pickupAt:ui.pickupAt};
+      const input={...ui.draft,...selection};
+      closeModal();await transaction(s=>createOrder(s,input));ui.pickupAt=null;
+      navigate('bestallning');toast('Beställningen ligger i baristans kö.');return;
+    }
     if(a==='redeem'){await transaction(s=>redeemCounter(s,ui.draft));closeModal();render();ticket();return;}
     if(['ready','undo','no-show'].includes(a)){await transaction(s=>transitionOrder(s,v,a));ui.justReady=a==='ready'?v:null;render();ui.justReady=null;if(a==='ready'&&hadFocus)($('.queue-button')||$('#shelf-title'))?.focus({preventScroll:true});toast(a==='ready'?'Koppen är klar. Kunden ser det i sin vy.':a==='no-show'?'Koppen är markerad som ej hämtad.':'Beställningen är tillbaka i kön.');return;}
     if(a==='collect-own'||a==='delay'){const id=activeOrder()?.id;if(id){await transaction(s=>transitionOrder(s,id,a==='delay'?'delay':'collect'));render();toast(a==='delay'?'Baristan ser din nya ankomsttid.':'Tack för din kaffepaus!');}return;}
@@ -338,7 +372,7 @@ document.addEventListener('click',async e=>{
     if(a==='confirm-cancel-sub'){await transaction(s=>{s.subscription.cancelling=true;});closeModal();render();toast('Avslutet är sparat till periodens slut.');return;}
     if(a==='resume'){await transaction(s=>{s.subscription.cancelling=false;});render();toast('Ditt demoabonnemang fortsätter.');return;}
     if(a==='reset')return confirm('Börja om från första koppen?','Dina lokala demouppgifter och hämtningar ersätts av de ursprungliga exemplen.','confirm-reset','Återställ demon');
-    if(a==='confirm-reset'){await transaction(s=>{Object.keys(s).forEach(k=>delete s[k]);Object.assign(s,createState());});ui.plan='daily';ui.draft=normalizeDrink(state,state.profile.favorite);ui.minutes=5;closeModal();render();toast('Demon är återställd. Dagens kopp väntar.');return;}
+    if(a==='confirm-reset'){await transaction(s=>{Object.keys(s).forEach(k=>delete s[k]);Object.assign(s,createState());});ui.plan='daily';ui.draft=normalizeDrink(state,state.profile.favorite);ui.minutes=5;ui.pickupAt=null;closeModal();render();toast('Demon är återställd. Dagens kopp väntar.');return;}
     if(a==='export-log'){csvDownload([['Namn','Dryck','Mjölk','Ta med','Fika','Datum','Tid','Sätt'],...state.log.map(l=>[l.name,l.drink,l.milk||'',l.takeaway?'Ja':'Nej',l.fika?'Ja':'Nej',dayKey(l.at),time(l.at),l.kind==='counter'?'Kassa':'Förbeställning'])],`bryggis-hamtningar-${dayKey()}.csv`);return;}
     if(a==='export-history'){csvDownload([['Dryck','Datum','Tid','Sätt'],...state.history.map(h=>[h.drink,dayKey(h.at),time(h.at),h.kind==='counter'?'Kassa':'Förbeställning'])],'bryggis-mina-kaffepauser.csv');return;}
     if(a==='cafe')modal(`<span class="eyebrow">Kaffe i ditt kvarter</span><h2 id="dialog-title">${esc(state.cafe.name)}</h2>${art()}<p>En plats för första koppen på morgonen och den lilla pausen mitt i dagen. Ett hej från baristan. En favorit att komma tillbaka till.</p><div class="cafe-modal-info"><p>${icon('pin')}${esc(state.cafe.address)}</p><p>${icon('time')}Öppet ${state.cafe.open}–${state.cafe.close} varje dag i demon</p><p>${icon('cup')}${esc(state.cafe.bean)} · ${esc(state.cafe.beanNote)}</p></div><p class="form-hint">Det här är ett exempelkafé. Uppgifterna kan anpassas i personalvyn.</p>${button('close','Vi ses snart '+icon('arrow'))}`);
@@ -367,5 +401,23 @@ window.addEventListener('online',connection);window.addEventListener('offline',c
 if('serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync();});
 let lastAvailability=openStatus(state).reason;
-setInterval(()=>{const available=openStatus(state);if(available.reason!==lastAvailability){lastAvailability=available.reason;if(ui.page==='hem')render();else nav();}else if(ui.page==='hem'&&$('.time-options')&&timeChoiceState().signature!==ui.fullSignature)render();const pickup=$('#planned-pickup');if(pickup)pickup.textContent=time(Date.now()+Math.max(state.cafe.prepMinutes,ui.minutes)*60000);if(dayKey()!==state.day){sync();persist();return;}document.querySelectorAll('[data-eta]').forEach(el=>{const o=state.orders.find(o=>o.id===el.dataset.eta);if(o&&o.status==='queued'){el.innerHTML=etaMarkup(o);el.classList.toggle('late',isLate(o));}});if(state.orders.some(o=>o.status==='ready'&&Date.now()-o.readyAt>=UNKNOWN_AFTER_MINUTES*60000)){transaction(()=>{}).then(render,()=>{});return;}const own=activeOrder();if(ui.page==='bestallning'&&own?.status==='queued'&&Date.now()>=own.cancelUntil&&document.querySelector('[data-action="cancel-order"]'))render();},15000);
+setInterval(()=>{
+  const now=Date.now(),available=openStatus(state,now);
+  if(available.reason!==lastAvailability){
+    lastAvailability=available.reason;
+    if(ui.page==='hem')render();else nav();
+  }else if(ui.page==='hem'&&$('.time-options')&&timeChoiceState(now).signature!==ui.timeSignature)render();
+  const pickup=$('#planned-pickup');
+  if(pickup)pickup.textContent=time(ui.pickupAt??pickupDue(state,ui.minutes,now));
+  if(dayKey(now)!==state.day){sync();persist();return;}
+  document.querySelectorAll('[data-eta]').forEach(el=>{
+    const o=state.orders.find(o=>o.id===el.dataset.eta);
+    if(o&&o.status==='queued'){el.innerHTML=etaMarkup(o);el.classList.toggle('late',isLate(o));}
+  });
+  if(state.orders.some(o=>o.status==='ready'&&now-o.readyAt>=UNKNOWN_AFTER_MINUTES*60000)){
+    transaction(()=>{}).then(render,()=>{});return;
+  }
+  const own=activeOrder();
+  if(ui.page==='bestallning'&&own?.status==='queued'&&now>=own.cancelUntil&&document.querySelector('[data-action="cancel-order"]'))render();
+},15000);
 route();if(!storageOK)toast('Webbläsaren kan inte spara. Prova att tillåta lokal lagring.');

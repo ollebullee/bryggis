@@ -19,7 +19,10 @@ export const UNKNOWN_AFTER_MINUTES = 60;
 // baristan i sitt intervall och flyttas inte därifrån om kunden blir sen. Bara avbrutna ordrar frigör platsen.
 export const SLOT_MINUTES = 5;
 export const DEFAULT_SLOT_CAPACITY = 4;
-export const slotFor = ms => Math.floor(ms/(SLOT_MINUTES*60000));
+const MINUTE_MS = 60_000;
+const SLOT_MS = SLOT_MINUTES * MINUTE_MS;
+const MAX_PICKUP_MINUTES = 180;
+export const slotFor = ms => Math.floor(ms / SLOT_MS);
 const normalizeOrder = o => ({...o,status:o.status==='preparing'||o.status==='pending'?'queued':o.status,cancelUntil:Number.isFinite(o.cancelUntil)?o.cancelUntil:o.createdAt,capacitySlot:Number.isFinite(o.capacitySlot)?o.capacitySlot:slotFor(o.dueAt)});
 export class AppError extends Error { constructor(message){super(message);this.name='AppError';} }
 export function dayKey(time=Date.now()) {return new Intl.DateTimeFormat('sv-SE',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(time));}
@@ -110,16 +113,26 @@ function assertAvailable(state,kind,now){
   if(kind==='preorder'&&!status.accepting)throw new AppError('Kaféet har pausat nya förbeställningar.');
 }
 const clock = ms => {const m=minutesOfDay(ms);return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;};
-export const pickupDue = (state,minutes,now=Date.now()) => now+Math.max(state.cafe.prepMinutes,minutes)*60000;
+export const pickupDue = (state,minutes,now=Date.now()) => now+Math.max(state.cafe.prepMinutes,minutes)*MINUTE_MS;
 export function slotLoad(state,slot,exceptId) {return state.orders.filter(o=>o.status!=='cancelled'&&o.id!==exceptId&&o.capacitySlot===slot).length;}
 export const slotIsFull = (state,slot,exceptId) => slotLoad(state,slot,exceptId)>=state.cafe.slotCapacity;
-// Nästa hämtningstid, i minuter från nu och i steg om fem, som går att boka före stängning. null om allt är fullt.
-export function nextFreeMinutes(state,fromMinutes=0,now=Date.now()) {
-  const remaining=openStatus(state,now).remaining;
-  for(let m=Math.ceil(Math.max(0,fromMinutes)/SLOT_MINUTES)*SLOT_MINUTES;Math.max(state.cafe.prepMinutes,m)<remaining;m+=SLOT_MINUTES){
-    if(!slotIsFull(state,slotFor(pickupDue(state,m,now))))return m;
+export function pickupFits(state,at,now=Date.now()) {
+  return Number.isFinite(at) && at>=pickupDue(state,0,now) && at<=now+MAX_PICKUP_MINUTES*MINUTE_MS
+    && dayKey(at)===dayKey(now) && minutesOfDay(at)<toMinutes(state.cafe.close);
+}
+// Börja vid tidigast möjliga hämtning och gå sedan till början av nästa fasta intervall.
+export function nextFreePickupAt(state,fromAt,now=Date.now()) {
+  if(!openStatus(state,now).accepting)return null;
+  const earliest=pickupDue(state,0,now);
+  for(let at=Math.max(earliest,fromAt??earliest);pickupFits(state,at,now);at=(slotFor(at)+1)*SLOT_MS){
+    if(!slotIsFull(state,slotFor(at)))return at;
   }
   return null;
+}
+function moveCapacitySlot(state,order,at,fullMessage) {
+  const slot=slotFor(at);
+  if(slot!==order.capacitySlot&&slotIsFull(state,slot,order.id))throw new AppError(fullMessage);
+  order.capacitySlot=slot;
 }
 export function normalizeDrink(state,input={}) {
   const plan=planFor(state);
@@ -131,17 +144,21 @@ export function normalizeDrink(state,input={}) {
 }
 export function createOrder(state,input,now=Date.now()) {
   rollState(state,now);assertAvailable(state,'preorder',now);
-  const minutes=Number(input.minutes);
-  if(!Number.isInteger(minutes)||minutes<0||minutes>180||minutes%SLOT_MINUTES!==0)throw new AppError('Välj en giltig hämtningstid.');
-  const delay=Math.max(state.cafe.prepMinutes,minutes),status=openStatus(state,now);
-  if(delay>=status.remaining)throw new AppError('Den tiden är efter stängning. Välj en tidigare hämtning.');
-  const dueAt=now+delay*60000,capacitySlot=slotFor(dueAt);
+  const minutes=Number(input.minutes),exact=input.pickupAt!==undefined;
+  if(!exact&&(!Number.isInteger(minutes)||minutes<0||minutes>MAX_PICKUP_MINUTES||minutes%SLOT_MINUTES!==0)){
+    throw new AppError('Välj en giltig hämtningstid.');
+  }
+  const dueAt=exact?input.pickupAt:pickupDue(state,minutes,now);
+  if(!Number.isFinite(dueAt)||dueAt>now+MAX_PICKUP_MINUTES*MINUTE_MS)throw new AppError('Välj en giltig hämtningstid.');
+  if(dueAt<pickupDue(state,0,now))throw new AppError('Det är för nära hämtningstiden. Välj en ny tid.');
+  if(!pickupFits(state,dueAt,now))throw new AppError('Den tiden är efter stängning. Välj en tidigare hämtning.');
+  const capacitySlot=slotFor(dueAt);
   if(slotIsFull(state,capacitySlot)){
-    const next=nextFreeMinutes(state,minutes+SLOT_MINUTES,now);
-    throw new AppError(next===null?'Alla tider är fulla just nu. Du kan hämta direkt i kassan.':`Den tiden är full. Nästa lediga tid är ${clock(pickupDue(state,next,now))}.`);
+    const next=nextFreePickupAt(state,(capacitySlot+1)*SLOT_MS,now)??nextFreePickupAt(state,undefined,now);
+    throw new AppError(next===null?'Alla tider är fulla just nu. Du kan hämta direkt i kassan.':`Den tiden är full. Nästa lediga tid är ${clock(next)}.`);
   }
   // Avbokningsgränsen sätts en gång, när baristan senast behöver börja. Senare ankomst flyttar den aldrig.
-  const order={id:uid(),number:String(state.nextNumber++),day:dayKey(now),name:state.profile.name,...normalizeDrink(state,input),createdAt:now,dueAt,capacitySlot,cancelUntil:now+(delay-state.cafe.prepMinutes)*60000,status:'queued',own:true};
+  const order={id:uid(),number:String(state.nextNumber++),day:dayKey(now),name:state.profile.name,...normalizeDrink(state,input),createdAt:now,dueAt,capacitySlot,cancelUntil:dueAt-state.cafe.prepMinutes*MINUTE_MS,status:'queued',own:true};
   state.orders.push(order);state.redemptions[dayKey(now)]={kind:'preorder',orderId:order.id,at:now,drink:order.drink};return order;
 }
 export function redeemCounter(state,input,now=Date.now()) {
@@ -154,7 +171,10 @@ export function transitionOrder(state,id,action,now=Date.now()) {
   if(!order)throw new AppError('Beställningen finns inte längre.');
   if((order.day||dayKey(order.createdAt))!==dayKey(now))throw new AppError('Beställningen tillhör en tidigare dag.');
   if(action==='ready'&&order.status==='queued'){order.status='ready';order.readyAt=now;}
-  else if(action==='undo'&&order.status==='ready'){order.status='queued';delete order.readyAt;}
+  else if(action==='undo'&&order.status==='ready'){
+    moveCapacitySlot(state,order,order.dueAt,`Tiden ${clock(order.dueAt)} är full. Beställningen ligger kvar på hyllan.`);
+    order.status='queued';delete order.readyAt;
+  }
   else if(action==='no-show'&&order.status==='ready'){order.status='not_collected';order.closedAt=now;}
   else if(action==='collect'&&order.status==='ready'){
     order.status='collected';order.collectedAt=now;order.closedAt=now;
@@ -171,9 +191,7 @@ export function transitionOrder(state,id,action,now=Date.now()) {
     if(minutesOfDay(newDue)>=toMinutes(state.cafe.close)||dayKey(newDue)!==dayKey(now))throw new AppError('Den tiden är efter stängning. Prata med personalen.');
     // En köad order byter intervall och kontrolleras mot taket. En klar kopp behåller sitt intervall.
     if(order.status==='queued'){
-      const newSlot=slotFor(newDue);
-      if(newSlot!==order.capacitySlot&&slotIsFull(state,newSlot,order.id))throw new AppError(`Tiden ${clock(newDue)} är full. Din beställning ligger kvar ${clock(order.dueAt)}.`);
-      order.capacitySlot=newSlot;
+      moveCapacitySlot(state,order,newDue,`Tiden ${clock(newDue)} är full. Din beställning ligger kvar ${clock(order.dueAt)}.`);
     }
     order.dueAt=newDue;order.delayed=true;
   }
