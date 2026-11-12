@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#2d241f">
-  <meta name="bryggis-build" content="7">
+  <meta name="bryggis-build" content="8">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="description" content="Kaffeabonnemang och förbeställning hos ditt lokala kafé. Prova Bryggis i en interaktiv demo utan betalning.">
@@ -106,19 +106,14 @@
   <a class="skip-link" href="#main">Till innehållet</a>
   <header class="topbar">
     <a class="wordmark" href="#hem" aria-label="Bryggis, hem"><span class="brand-icon" id="brand-icon"></span>bryggis<span class="brand-dot">.</span></a>
-    <span class="header-caption">Kaffe hos ditt lokala kafé.</span>
-    <div class="mode-switch" aria-label="Välj vy">
+    <div class="mode-switch" role="group" aria-label="Välj vy">
       <button type="button" data-action="customer" id="customer-mode">Kundvy</button>
       <button type="button" data-action="staff" id="staff-mode">Personalvy</button>
     </div>
-    <button class="demo-badge" data-action="about" aria-label="Om demoversionen"><span></span>Demo</button>
   </header>
   <div class="app-shell">
     <aside class="sidebar" aria-label="Huvudmeny">
-      <div class="cafe-lockup"><div class="cafe-monogram">DK</div><div><strong data-cafe-name>Ditt Kafé</strong><span>Ditt lokala kafé</span></div></div>
       <nav id="desktop-nav"></nav>
-      <div class="sidebar-note"><p>Bryggis i mobilen</p><button class="text-link" data-action="install">Lägg på hemskärmen <span aria-hidden="true">↗</span></button></div>
-      <div id="sidebar-status" class="sidebar-bottom"></div>
     </aside>
     <main id="main" tabindex="-1"></main>
   </div>
