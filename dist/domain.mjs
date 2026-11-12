@@ -13,7 +13,14 @@ const ACTIVE_ORDERS = ['queued','ready'];
 export const UNKNOWN_AFTER_MINUTES = 60;
 // Äldre sparad demodata kan ha statusen preparing från tiden med Börja-knappen.
 // Den saknar avbokningsgräns och får därför ingen ny möjlighet att avbokas.
-const normalizeOrder = o => ({...o,status:o.status==='preparing'||o.status==='pending'?'queued':o.status,cancelUntil:Number.isFinite(o.cancelUntil)?o.cancelUntil:o.createdAt});
+// Kapacitetstak: högst cafe.slotCapacity förbeställningar per fast femminutersintervall för planerad hämtning
+// (till exempel 08:00–08:04). Svensk tid ligger hela timmar från UTC, så intervallen följer klockan.
+// Varje order sparar sitt capacitySlot separat från dueAt: en kopp som redan är klar har belastat
+// baristan i sitt intervall och flyttas inte därifrån om kunden blir sen. Bara avbrutna ordrar frigör platsen.
+export const SLOT_MINUTES = 5;
+export const DEFAULT_SLOT_CAPACITY = 4;
+export const slotFor = ms => Math.floor(ms/(SLOT_MINUTES*60000));
+const normalizeOrder = o => ({...o,status:o.status==='preparing'||o.status==='pending'?'queued':o.status,cancelUntil:Number.isFinite(o.cancelUntil)?o.cancelUntil:o.createdAt,capacitySlot:Number.isFinite(o.capacitySlot)?o.capacitySlot:slotFor(o.dueAt)});
 export class AppError extends Error { constructor(message){super(message);this.name='AppError';} }
 export function dayKey(time=Date.now()) {return new Intl.DateTimeFormat('sv-SE',{timeZone:TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(time));}
 export function minutesOfDay(time=Date.now()) {const parts=new Intl.DateTimeFormat('en-GB',{timeZone:TIME_ZONE,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(time));return Number(parts.find(p=>p.type==='hour').value)*60+Number(parts.find(p=>p.type==='minute').value);}
@@ -25,7 +32,7 @@ export function planFor(state,id=state.subscription.plan) {const p=PLAN_TYPES.fi
 export function createState(now=Date.now(),samples=true) {
   const day=dayKey(now);
   return {version:2,revision:0,day,
-    cafe:{name:'Ditt Kafé',address:'Runt hörnet, i ditt kvarter',open:'07:00',close:'18:00',prepMinutes:4,paused:false,prices:{daily:579},regularPrices:{daily:39},bean:'Etiopien Guji',beanNote:'Ljusrost · jasmin, citrus & bergamott'},
+    cafe:{name:'Ditt Kafé',address:'Runt hörnet, i ditt kvarter',open:'07:00',close:'18:00',prepMinutes:4,slotCapacity:DEFAULT_SLOT_CAPACITY,paused:false,prices:{daily:579},regularPrices:{daily:39},bean:'Etiopien Guji',beanNote:'Ljusrost · jasmin, citrus & bergamott'},
     profile:{name:'Alex Andersson',email:'alex@example.com',favorite:{drink:'Bryggkaffe',milk:'Svart',takeaway:true}},
     subscription:{plan:'daily',price:579,active:true,cancelling:false,periodStart:day,periodEnd:addMonth(day),billingDay:Number(day.slice(-2))},
     orders:samples?[
@@ -33,7 +40,7 @@ export function createState(now=Date.now(),samples=true) {
       {id:'example-sara',name:'Sara L.',drink:'Bryggkaffe',milk:'Havredryck',takeaway:true,fika:false,createdAt:now-90000,dueAt:now+9*60000,cancelUntil:now+5*60000,status:'queued',own:false,day,number:'102'},
       {id:'example-omar',name:'Omar K.',drink:'Bryggkaffe',milk:'Vanlig mjölk',takeaway:false,fika:false,createdAt:now-60000,dueAt:now+12*60000,cancelUntil:now+8*60000,status:'queued',own:false,day,number:'103'},
       {id:'example-elin',name:'Elin B.',drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now-8*60000,dueAt:now-60000,cancelUntil:now-5*60000,status:'ready',readyAt:now-60000,own:false,day,number:'104'}
-    ]:[],redemptions:{},history:[],log:samples?[
+    ].map(normalizeOrder):[],redemptions:{},history:[],log:samples?[
       {id:'log-jonas',name:'Jonas P.',drink:'Bryggkaffe',at:now-7*60000,kind:'counter',sample:true},
       {id:'log-maja',name:'Maja S.',drink:'Bryggkaffe',at:now-10*60000,kind:'preorder',sample:true},
       {id:'log-ali',name:'Ali R.',drink:'Bryggkaffe',at:now-14*60000,kind:'counter',sample:true}
@@ -62,6 +69,7 @@ export function migrateState(raw,now=Date.now()) {
   next.history=next.history.filter(h=>Number.isFinite(h.at)&&validString(h.drink)).slice(0,300);
   next.log=next.log.filter(l=>Number.isFinite(l.at)&&validString(l.name,60)&&validString(l.drink)).slice(0,300);
   next.cafe.prepMinutes=Math.min(20,Math.max(1,Number(next.cafe.prepMinutes)||4));
+  next.cafe.slotCapacity=Math.min(20,Math.max(1,Math.round(Number(next.cafe.slotCapacity))||DEFAULT_SLOT_CAPACITY));
   for(const p of PLAN_TYPES){
     if(!Number.isFinite(Number(next.cafe.prices[p.id]))||Number(next.cafe.prices[p.id])<50||Number(next.cafe.prices[p.id])>4999)next.cafe.prices[p.id]=p.price;
     if(!Number.isFinite(Number(next.cafe.regularPrices[p.id]))||Number(next.cafe.regularPrices[p.id])<5||Number(next.cafe.regularPrices[p.id])>500)next.cafe.regularPrices[p.id]=p.regularPrice;
@@ -101,6 +109,18 @@ function assertAvailable(state,kind,now){
   if(!status.open)throw new AppError(`Kaféet är stängt. Öppet ${state.cafe.open}–${state.cafe.close}.`);
   if(kind==='preorder'&&!status.accepting)throw new AppError('Kaféet har pausat nya förbeställningar.');
 }
+const clock = ms => {const m=minutesOfDay(ms);return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;};
+export const pickupDue = (state,minutes,now=Date.now()) => now+Math.max(state.cafe.prepMinutes,minutes)*60000;
+export function slotLoad(state,slot,exceptId) {return state.orders.filter(o=>o.status!=='cancelled'&&o.id!==exceptId&&o.capacitySlot===slot).length;}
+export const slotIsFull = (state,slot,exceptId) => slotLoad(state,slot,exceptId)>=state.cafe.slotCapacity;
+// Nästa hämtningstid, i minuter från nu och i steg om fem, som går att boka före stängning. null om allt är fullt.
+export function nextFreeMinutes(state,fromMinutes=0,now=Date.now()) {
+  const remaining=openStatus(state,now).remaining;
+  for(let m=Math.ceil(Math.max(0,fromMinutes)/SLOT_MINUTES)*SLOT_MINUTES;Math.max(state.cafe.prepMinutes,m)<remaining;m+=SLOT_MINUTES){
+    if(!slotIsFull(state,slotFor(pickupDue(state,m,now))))return m;
+  }
+  return null;
+}
 export function normalizeDrink(state,input={}) {
   const plan=planFor(state);
   const drink=plan.drinks.includes(input.drink)?input.drink:plan.drinks[0];
@@ -112,11 +132,16 @@ export function normalizeDrink(state,input={}) {
 export function createOrder(state,input,now=Date.now()) {
   rollState(state,now);assertAvailable(state,'preorder',now);
   const minutes=Number(input.minutes);
-  if(![0,5,10,15,20].includes(minutes))throw new AppError('Välj en giltig hämtningstid.');
+  if(!Number.isInteger(minutes)||minutes<0||minutes>180||minutes%SLOT_MINUTES!==0)throw new AppError('Välj en giltig hämtningstid.');
   const delay=Math.max(state.cafe.prepMinutes,minutes),status=openStatus(state,now);
   if(delay>=status.remaining)throw new AppError('Den tiden är efter stängning. Välj en tidigare hämtning.');
+  const dueAt=now+delay*60000,capacitySlot=slotFor(dueAt);
+  if(slotIsFull(state,capacitySlot)){
+    const next=nextFreeMinutes(state,minutes+SLOT_MINUTES,now);
+    throw new AppError(next===null?'Alla tider är fulla just nu. Du kan hämta direkt i kassan.':`Den tiden är full. Nästa lediga tid är ${clock(pickupDue(state,next,now))}.`);
+  }
   // Avbokningsgränsen sätts en gång, när baristan senast behöver börja. Senare ankomst flyttar den aldrig.
-  const order={id:uid(),number:String(state.nextNumber++),day:dayKey(now),name:state.profile.name,...normalizeDrink(state,input),createdAt:now,dueAt:now+delay*60000,cancelUntil:now+(delay-state.cafe.prepMinutes)*60000,status:'queued',own:true};
+  const order={id:uid(),number:String(state.nextNumber++),day:dayKey(now),name:state.profile.name,...normalizeDrink(state,input),createdAt:now,dueAt,capacitySlot,cancelUntil:now+(delay-state.cafe.prepMinutes)*60000,status:'queued',own:true};
   state.orders.push(order);state.redemptions[dayKey(now)]={kind:'preorder',orderId:order.id,at:now,drink:order.drink};return order;
 }
 export function redeemCounter(state,input,now=Date.now()) {
@@ -144,6 +169,12 @@ export function transitionOrder(state,id,action,now=Date.now()) {
   else if(action==='delay'&&ACTIVE_ORDERS.includes(order.status)){
     const newDue=Math.max(order.dueAt,now)+5*60000;
     if(minutesOfDay(newDue)>=toMinutes(state.cafe.close)||dayKey(newDue)!==dayKey(now))throw new AppError('Den tiden är efter stängning. Prata med personalen.');
+    // En köad order byter intervall och kontrolleras mot taket. En klar kopp behåller sitt intervall.
+    if(order.status==='queued'){
+      const newSlot=slotFor(newDue);
+      if(newSlot!==order.capacitySlot&&slotIsFull(state,newSlot,order.id))throw new AppError(`Tiden ${clock(newDue)} är full. Din beställning ligger kvar ${clock(order.dueAt)}.`);
+      order.capacitySlot=newSlot;
+    }
     order.dueAt=newDue;order.delayed=true;
   }
   else throw new AppError('Beställningen har ändrats. Kontrollera dess senaste status.');

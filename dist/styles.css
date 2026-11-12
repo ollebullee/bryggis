@@ -512,3 +512,12 @@ p { text-wrap: pretty; }
 @keyframes shelf-in { from { opacity: 0; transform: translateY(-4px); background: var(--green-soft); } 50% { opacity: 1; transform: none; background: var(--green-soft); } to { background: transparent; } }
 .shelf-row.just-added { animation: shelf-in 1.2s ease-out; }
 @media (prefers-reduced-motion: reduce) { .shelf-row.just-added { animation: none; } }
+
+/* Kapacitetstak: fulla tider i tidsvalet */
+.time-options button.full { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.1; color: var(--muted); border-style: dashed; }
+.time-options button.full:disabled { cursor: not-allowed; opacity: 1; }
+.time-full { font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--red); }
+.queue-capacity { font-size: 13px; color: var(--muted); }
+/* Tidsfälten i två kolumner fick 0,6 px för mycket i 320 px bredd */
+.form-columns > * { min-width: 0; }
+.form-columns input { min-width: 0; width: 100%; }

@@ -1,4 +1,4 @@
-const CACHE='bryggis-shell-v9';
+const CACHE='bryggis-shell-v10-capacity-1';
 const ASSETS=['./styles.css','./app.js','./domain.mjs','./icons.mjs','./bryggis-logo.png','./favicon.png','./app-icon.png','./app-icon-maskable.png','./signup-qr.png','./manifest.webmanifest'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>(k.startsWith('bryggis-shell-')||k.startsWith('stammis-shell-'))&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});

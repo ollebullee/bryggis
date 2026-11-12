@@ -53,6 +53,7 @@ npm run check
 - Personalkö med ett tryck per kopp: **Klar** flyttar beställningen till listan **På hyllan**, där personalen kan **Ångra** eller markera **Ej hämtad**. Kunden bekräftar själv **Jag har hämtat mitt kaffe**.
 - Tre slutstatusar: kundbekräftad hämtning, ej hämtad och avslutad med okänd hämtning. En klar kopp som ingen har bekräftat på 60 minuter avslutas som okänd, ett antagande för piloten. Ingen slutstatus ger en ny dagskopp.
 - Fast avbokningsgräns: kunden kan avbryta tills baristan senast behöver börja. **5 minuter senare** flyttar inte gränsen. Vid **Snarast** får kunden bekräfta att beställningen inte går att avbryta.
+- Kapacitetstak: högst 4 förbeställningar per femminutersintervall för planerad hämtning, inställbart 1–20 under **Kaféinställningar**. Fulla tider visas som **Fullt**, och nästa lediga tid före stängning erbjuds. Är allt fullt hänvisas kunden till kassan. En avbokning frigör platsen. En kopp som redan är klar behåller sitt intervall om kunden blir sen. Sänk taket till 1 för att se en full tid i demon.
 - Lokal reservation av dagens kopp, öppettider och daggräns i Europe/Stockholm.
 - Kaféinställningar, kundens historik med CSV-export och återställning av demodata.
 - Grön hämtbekräftelse med namn, klocka, animation och två minuters giltighet.
@@ -72,7 +73,7 @@ Använd exempeluppgifter. Du kan återställa demon under **Konto**. Beställnin
 | Förnyelse och uppsägning | Simuleras med lokala datum. Ingen betaltjänst påverkas. |
 | Riktiga kafébeställningar | Skickas inte till ett kafé. Kön innehåller exempeldata. |
 | Avbokning | Tidslåset kontrolleras bara lokalt. I piloten måste servern kontrollera avbokning och dagskvot tillsammans. Ångra efter skickad order kräver en serverlösning och ingår inte. |
-| Kapacitet | Inget tak för antal förbeställningar per tidsintervall ännu. |
+| Kapacitet | Taket kontrolleras bara lokalt. I piloten måste servern kontrollera det i samma transaktion som en order skapas eller flyttas. |
 | Utbud | Ett abonnemang, Dagens kaffe: bryggkaffe, en kopp om dagen, 579 kr/mån. Det motsvarar cirka 15 koppar à 39 kr. Kaféet kan ändra priset under Kaféinställningar. |
 | Notiser | Ingen pushfunktion eller garanterat pling när telefonen är låst. |
 

@@ -1,7 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PLAN_TYPES,UNKNOWN_AFTER_MINUTES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus} from '../dist/domain.mjs';
+import {PLAN_TYPES,UNKNOWN_AFTER_MINUTES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus,slotFor,slotLoad,slotIsFull,pickupDue,nextFreeMinutes} from '../dist/domain.mjs';
 const now=Date.parse('2026-11-04T10:00:00Z');
+// Andra kunders beställningar som fyller ett intervall. Demon har bara en egen kund per dag.
+const fill=(s,dueAt,count,status='queued')=>{for(let i=0;i<count;i++)s.orders.push({id:`gast-${dueAt}-${i}-${s.orders.length}`,name:`Gäst ${i}`,drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now,dueAt,capacitySlot:slotFor(dueAt),cancelUntil:now,status,own:false,day:s.day,number:String(300+s.orders.length)});};
+test('Kapacitetstak: en femte beställning i samma intervall nekas och nästa lediga tid föreslås',()=>{
+  const s=createState(now,false),due=pickupDue(s,10,now),slot=slotFor(due);
+  fill(s,due,3);fill(s,due,1,'collected');
+  assert.equal(slotLoad(s,slot),4);assert.ok(slotIsFull(s,slot));
+  assert.throws(()=>createOrder(s,{minutes:10},now),/Den tiden är full\. Nästa lediga tid är 11:15\./);
+  assert.equal(s.redemptions[s.day],undefined);
+  const o=createOrder(s,{minutes:15},now);
+  assert.equal(o.capacitySlot,slotFor(pickupDue(s,15,now)));
+});
+test('Kapacitetstak: en avbokning frigör platsen',()=>{
+  const s=createState(now,false),due=pickupDue(s,20,now),slot=slotFor(due);
+  fill(s,due,3);
+  const o=createOrder(s,{minutes:20},now);
+  assert.ok(slotIsFull(s,slot));
+  transitionOrder(s,o.id,'cancel',now+1000);
+  assert.equal(slotLoad(s,slot),3);
+  createOrder(s,{minutes:20},now+2000);
+  assert.equal(slotLoad(s,slot),4);
+});
+test('Kapacitetstak: 5 minuter senare stoppas av en full tid, men en klar kopp behåller sitt intervall',()=>{
+  const s=createState(now,false),o=createOrder(s,{minutes:10},now),slot=o.capacitySlot,due=o.dueAt;
+  fill(s,due+5*60000,4);
+  assert.throws(()=>transitionOrder(s,o.id,'delay',now+60000),/Tiden 11:15 är full\. Din beställning ligger kvar 11:10\./);
+  assert.equal(o.dueAt,due);assert.equal(o.capacitySlot,slot);assert.equal(o.delayed,undefined);
+  transitionOrder(s,o.id,'ready',now+2*60000);
+  transitionOrder(s,o.id,'delay',now+3*60000);
+  assert.equal(o.dueAt,due+5*60000);assert.equal(o.capacitySlot,slot);assert.equal(slotLoad(s,slot),1);
+  assert.throws(()=>transitionOrder(s,o.id,'cancel',now+3*60000));
+});
+test('Kapacitetstak: när allt är fullt hänvisas kunden till kassan',()=>{
+  const s=createState(now,false);s.cafe.slotCapacity=1;s.cafe.close='11:12';
+  for(const m of [0,5,10])fill(s,pickupDue(s,m,now),1);
+  assert.equal(nextFreeMinutes(s,0,now),null);
+  assert.throws(()=>createOrder(s,{minutes:0},now),/Alla tider är fulla just nu\. Du kan hämta direkt i kassan\./);
+  redeemCounter(s,{},now);
+});
+test('Kapacitetstak: inställningen ligger mellan 1 och 20, och äldre data får standardvärde och intervall',()=>{
+  const s=createState(now,false),o=createOrder(s,{minutes:15},now);
+  delete s.cafe.slotCapacity;delete o.capacitySlot;
+  const m=migrateState(JSON.parse(JSON.stringify(s)),now);
+  assert.equal(m.cafe.slotCapacity,4);assert.equal(m.orders[0].capacitySlot,slotFor(o.dueAt));
+  for(const [value,expected] of [[99,20],[-3,1],['x',4],[7,7]]){s.cafe.slotCapacity=value;assert.equal(migrateState(JSON.parse(JSON.stringify(s)),now).cafe.slotCapacity,expected);}
+  assert.ok(createState(now).orders.every(x=>Number.isFinite(x.capacitySlot)));
+  assert.throws(()=>createOrder(createState(now,false),{minutes:7},now),/giltig/);
+});
 test('Förbeställning och kassa delar en kopp; kö kan avbrytas och släppa reservationen',()=>{
   const s=createState(now,false),o=createOrder(s,{minutes:5,drink:'Bryggkaffe'},now);
   assert.throws(()=>redeemCounter(s,{},now),/redan/);
