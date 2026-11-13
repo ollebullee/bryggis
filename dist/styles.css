@@ -516,6 +516,7 @@ p { text-wrap: pretty; }
 /* Kapacitetstak: fulla tider i tidsvalet */
 .time-options button.full { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.1; color: var(--muted); border-style: dashed; }
 .time-options button.full:disabled { cursor: not-allowed; opacity: 1; }
+.time-options button.exact-time { grid-column: 1 / -1; }
 .time-full { font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--red); }
 .queue-capacity { font-size: 13px; color: var(--muted); }
 /* Tidsfälten i två kolumner fick 0,6 px för mycket i 320 px bredd */

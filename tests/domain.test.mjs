@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PLAN_TYPES,UNKNOWN_AFTER_MINUTES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus,slotFor,slotLoad,slotIsFull,pickupDue,nextFreeMinutes} from '../dist/domain.mjs';
+import {PLAN_TYPES,UNKNOWN_AFTER_MINUTES,createState,dayKey,addMonth,rollState,createOrder,redeemCounter,transitionOrder,activateSubscription,savingsFor,migrateState,openStatus,slotFor,slotLoad,slotIsFull,pickupDue,nextFreePickupAt} from '../dist/domain.mjs';
 const now=Date.parse('2026-11-04T10:00:00Z');
 // Andra kunders beställningar som fyller ett intervall. Demon har bara en egen kund per dag.
 const fill=(s,dueAt,count,status='queued')=>{for(let i=0;i<count;i++)s.orders.push({id:`gast-${dueAt}-${i}-${s.orders.length}`,name:`Gäst ${i}`,drink:'Bryggkaffe',milk:'Svart',takeaway:true,fika:false,createdAt:now,dueAt,capacitySlot:slotFor(dueAt),cancelUntil:now,status,own:false,day:s.day,number:String(300+s.orders.length)});};
@@ -36,7 +36,7 @@ test('Kapacitetstak: 5 minuter senare stoppas av en full tid, men en klar kopp b
 test('Kapacitetstak: när allt är fullt hänvisas kunden till kassan',()=>{
   const s=createState(now,false);s.cafe.slotCapacity=1;s.cafe.close='11:12';
   for(const m of [0,5,10])fill(s,pickupDue(s,m,now),1);
-  assert.equal(nextFreeMinutes(s,0,now),null);
+  assert.equal(nextFreePickupAt(s,undefined,now),null);
   assert.throws(()=>createOrder(s,{minutes:0},now),/Alla tider är fulla just nu\. Du kan hämta direkt i kassan\./);
   redeemCounter(s,{},now);
 });
@@ -48,6 +48,44 @@ test('Kapacitetstak: inställningen ligger mellan 1 och 20, och äldre data får
   for(const [value,expected] of [[99,20],[-3,1],['x',4],[7,7]]){s.cafe.slotCapacity=value;assert.equal(migrateState(JSON.parse(JSON.stringify(s)),now).cafe.slotCapacity,expected);}
   assert.ok(createState(now).orders.every(x=>Number.isFinite(x.capacitySlot)));
   assert.throws(()=>createOrder(createState(now,false),{minutes:7},now),/giltig/);
+});
+test('Sista lediga intervall före stängning går att boka med den visade klocktiden',()=>{
+  const at=Date.parse('2026-11-12T10:02:00Z'),s=createState(at,false);
+  s.cafe.slotCapacity=1;s.cafe.close='11:16';
+  fill(s,at+4*60_000,1);
+  fill(s,at+10*60_000,1);
+  const lastPickup=Date.parse('2026-11-12T10:15:00Z');
+  assert.equal(nextFreePickupAt(s,undefined,at),lastPickup);
+  assert.throws(()=>createOrder(s,{minutes:5},at),/Nästa lediga tid är 11:15/);
+  assert.throws(()=>createOrder(s,{pickupAt:lastPickup},lastPickup-3*60_000),/för nära hämtningstiden/);
+  const order=createOrder(s,{pickupAt:lastPickup},at+60_000);
+  assert.equal(order.dueAt,lastPickup);
+  assert.equal(order.cancelUntil,lastPickup-4*60_000);
+});
+test('Nästa lediga tid stannar vid bokningens 180-minutersgräns',()=>{
+  const s=createState(now,false);s.cafe.slotCapacity=1;
+  for(let minutes=0;minutes<=180;minutes+=5)fill(s,pickupDue(s,minutes,now),1);
+  assert.equal(nextFreePickupAt(s,undefined,now),null);
+  assert.throws(()=>createOrder(s,{pickupAt:pickupDue(s,185,now)},now),/giltig hämtningstid/);
+});
+test('Ångra en senarelagd klar kopp kontrollerar platsen i dess nya intervall',()=>{
+  const s=createState(now,false);s.cafe.slotCapacity=1;
+  const order=createOrder(s,{minutes:10},now),originalSlot=order.capacitySlot;
+  const newDue=order.dueAt+5*60_000,newSlot=slotFor(newDue);
+  const cancelUntil=order.cancelUntil;
+  fill(s,newDue,1);
+  transitionOrder(s,order.id,'ready',now+60_000);
+  transitionOrder(s,order.id,'delay',now+2*60_000);
+  assert.throws(()=>transitionOrder(s,order.id,'undo',now+3*60_000),/ligger kvar på hyllan/);
+  assert.equal(order.status,'ready');
+  assert.equal(order.capacitySlot,originalSlot);
+  s.orders.at(-1).status='cancelled';
+  transitionOrder(s,order.id,'undo',now+3*60_000);
+  assert.equal(order.status,'queued');
+  assert.equal(order.dueAt,newDue);
+  assert.equal(order.capacitySlot,newSlot);
+  assert.equal(order.cancelUntil,cancelUntil);
+  assert.equal(slotLoad(s,newSlot),1);
 });
 test('Förbeställning och kassa delar en kopp; kö kan avbrytas och släppa reservationen',()=>{
   const s=createState(now,false),o=createOrder(s,{minutes:5,drink:'Bryggkaffe'},now);
